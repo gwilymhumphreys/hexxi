@@ -1,0 +1,46 @@
+{
+  "name": "hexxi",
+  "version": "0.0.5",
+  "description": "A HTML5 engine for creating hex based games",
+  "main": "src/index",
+  "license": "MIT",
+  "author": "Gwilym Humphreys (https://github.com/gwilymhumphreys)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gwilymhumphreys/hexxi.git"
+  },
+  "keywords": [
+    "html5",
+    "game",
+    "engine",
+    "hex",
+    "tiles",
+    "wooOOoooOOo"
+  ],
+  "engines": {
+    "node": "*"
+  },
+  "scripts": {
+    "test": "npm run build; NODE_ENV=test mocha test/suite.coffee --compilers coffee:coffee-script --reporter spec --timeout 10000",
+    "build": "coffee -o lib -c src",
+    "watch": "coffee -o lib -w src",
+    "clean": "rm -rf lib/*",
+    "prepublish": "npm run build"
+  },
+  "devDependencies": {
+    "coffee-script": "*",
+    "mocha": "*",
+    "gulp": "3.5.x",
+    "gulp-coffee": "1.2.x",
+    "gulp-compile-js": "0.0.x",
+    "gulp-concat": "2.1.x",
+    "gulp-livereload": "0.3.x",
+    "gulp-module-system": "git://github.com/gwilymhumphreys/gulp-module-system.git",
+    "gulp-util": "2.2.x"
+  },
+  "dependencies": {
+    "underscore": "1.5.x",
+    "moment": "2.0.x",
+    "inflection": "1.2.x"
+  }
+}

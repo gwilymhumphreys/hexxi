@@ -1,4 +1,4 @@
-# Hexxi v0.02
+# Hexxi v0.0.5
 A HTML5 engine for creating hex based games
 
 ##Getting started

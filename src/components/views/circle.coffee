@@ -1,0 +1,12 @@
+Component = require './../component'
+PIXI = require 'pixi'
+
+module.exports = class Circle extends Component
+  _name: 'circle'
+
+  createDisplayObject: =>
+    @display_object = new PIXI.Graphics()
+    @display_object.beginFill(0xFFFF00)
+    @display_object.lineStyle(5, 0xFF0000)
+    @display_object.drawCircle(100, 100, 5)
+    return @display_object

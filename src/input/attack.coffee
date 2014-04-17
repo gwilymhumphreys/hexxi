@@ -11,7 +11,7 @@ module.exports = class AttackContext extends Context
       entity.on 'click', @toggleSelect
 #    return _.filter(units, (p) -> p.team.id is @team)
 
-  toggleSelect: (event, entity) =>
+  toggleSelect: (entity, event) =>
     if @selected_entity
       @onDeselect(entity)
     else

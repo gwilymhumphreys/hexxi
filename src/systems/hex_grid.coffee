@@ -22,10 +22,8 @@ module.exports = class HexGrid extends System
 
     unless Engine.isEntity(@board)
       @board = new Board(_.defaults(@board or {}, {position: {x: 10, y: 10}}))
-    console.log Math.floor(@rows/2) * @tile_width, 3/4 * Math.floor(@columns/2) * @tile_height
     @board.position.x += Math.floor(@rows/2) * @tile_width
     @board.position.y += 3/4 * Math.floor(@columns/2) * @tile_height
-    console.log @board
 
   createGrid: =>
     Engine.addEntity(@board)
@@ -57,20 +55,19 @@ module.exports = class HexGrid extends System
 
   onMousemove: (event) =>
     coords = @mouseEventCoords(event)
-#    console.log @entitiesAtCoords(coords)
     for entity in @entitiesAtCoords(coords) when not entity.hovering
       entity.hovering = true
-      entity.emit 'mouseover', event, entity
+      entity.emit 'mouseover', entity, event
     for entity in @entitiesNotAtCoords(coords) when entity.hovering
       entity.hovering = false
-      entity.emit 'mouseout', event, entity
+      entity.emit 'mouseout', entity, event
 
   onClick: (event) =>
 #    coords = @mouseEventCoords(pixi_event.originalEvent)
     coords = @mouseEventCoords(event)
     console.log @entitiesAtCoords(coords)
     for entity in @entitiesAtCoords(coords)
-      entity.emit 'click', event, entity
+      entity.emit 'click', entity, event
 
   update: =>
     for entity in Engine.entitiesByComponent('hex_position')

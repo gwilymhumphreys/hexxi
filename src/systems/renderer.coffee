@@ -43,6 +43,8 @@ module.exports = class Renderer extends System
     return unless stage = entity.view.stage
     return if stage.children.indexOf(entity.view.display_object) >= 0
     stage.addChild(entity.view.display_object)
+    window.stage = stage
+#    stage.children.sort (c) -> c.z_index or 0
     entity.emit('show', entity.view.display_object)
 
   removeFromStage: (entity) =>

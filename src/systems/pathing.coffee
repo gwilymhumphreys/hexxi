@@ -29,9 +29,9 @@ module.exports = class Pathing extends System
   onEntityDeselected: (entity) =>
     @pathEnd(entity)
 
-  onTileClick: (e, entity) => @pathEnd(entity) if @pathing
+  onTileClick: (entity, event) => @pathEnd(entity) if @pathing
 
-  onTileHover: (e, entity) =>
+  onTileHover: (entity, event) =>
     return unless @pathing
     @hidePath()
     path_finder = new Path(@map, {end_traversable: true})

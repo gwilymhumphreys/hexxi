@@ -12,5 +12,5 @@ module.exports = class SelectAllyMixin
     for entity in @targets
       entity.off 'click', @select
 
-  select: (e, entity) =>
+  select: (entity, event) =>
     Engine.getSystem('selectables').select(entity)

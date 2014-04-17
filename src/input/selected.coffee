@@ -36,19 +36,19 @@ module.exports = class AllySelectedContext extends Select
     for entity in @tiles
       entity.off 'click', @onTileSelect
 
-  onAllySelect: (e, entity) =>
+  onAllySelect: (entity, event) =>
     console.log 'ally select', entity
     Engine.getSystem('selectables').select(entity)
     Engine.getSystem('input').setContext('selected', entity)
 
-  onEnemySelect: (e, entity) =>
+  onEnemySelect: (entity, event) =>
     console.log 'enemy select', entity
     path = Engine.getSystem('pathing').path
     command = new MoveCommand({entity: @entity, path: path})
     Engine.getSystem('command_queue').push(command)
     Engine.getSystem('input').setContext('select')
 
-  onTileSelect: (e, entity) =>
+  onTileSelect: (entity, event) =>
     path = Engine.getSystem('pathing').path
     command = new MoveCommand({entity: @entity, path: path})
     Engine.getSystem('command_queue').push(command)

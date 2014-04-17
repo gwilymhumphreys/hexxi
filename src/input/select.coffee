@@ -10,11 +10,13 @@ module.exports = class SelectContext extends Context
     for entity in @entities
       entity.on 'click', @select
 
+  onEntityCreated: (entity) => @entities.push(entity); entity.on 'click', @select
+
   deactivate: =>
     for entity in @entities
       entity.off 'click', @select
 
-  select: (e, entity) =>
+  select: (entity, event) =>
     return unless Engine.getSystem('teams').isAlly(entity)
     Engine.getSystem('selectables').select(entity)
     Engine.getSystem('input').setContext('selected', entity)

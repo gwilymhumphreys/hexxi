@@ -42,6 +42,7 @@ module.exports = class HexGrid extends System
     return tiles
 
   init: =>
+    console.log 'HEX INIT'
     super
     @createGrid(@options)
     document.addEventListener 'mousemove', @onMousemove
@@ -63,7 +64,6 @@ module.exports = class HexGrid extends System
       entity.emit 'mouseout', entity, event
 
   onClick: (event) =>
-#    coords = @mouseEventCoords(pixi_event.originalEvent)
     coords = @mouseEventCoords(event)
     for entity in @entitiesAtCoords(coords)
       entity.emit 'click', entity, event

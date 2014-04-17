@@ -30,7 +30,7 @@
   "devDependencies": {
     "coffee-script": "*",
     "mocha": "*",
-    "gulp": "3.5.x",
+    "gulp": "3.6.x",
     "gulp-coffee": "1.2.x",
     "gulp-compile-js": "0.0.x",
     "gulp-concat": "2.1.x",

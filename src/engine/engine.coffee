@@ -10,8 +10,8 @@ BUILTIN_PATHS =
 #  components: 'client/src/components/'
 #  entities: 'client/src/entities/'
 #  input: 'client/src/input/'
-  commands: 'client/src/commands/'
-  systems: 'client/src/systems/'
+  commands: 'client/src/hexxi/src/commands/'
+  systems: 'client/src/hexxi/src/systems/'
 
 class Engine extends EventEmitter
 
@@ -35,7 +35,7 @@ class Engine extends EventEmitter
 
     @init()
 
-  init: ->
+  init: =>
     for system in @systems
       system.init(@)
     @update()

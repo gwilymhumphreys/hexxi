@@ -51,7 +51,7 @@ Extracting lib from prototype
 The following are included in core
 - board
 - grid_tile
-- player ** to extract
+- unit ** to extract
 - team ** to extract
 
 #####Components
@@ -74,7 +74,7 @@ Some pruning is needed
 - relations
 - selectable
 - tile
-- player ** to extract
+- unit ** to extract
 - team ** to extract
 
 #####Systems

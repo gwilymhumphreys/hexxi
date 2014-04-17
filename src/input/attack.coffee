@@ -9,7 +9,7 @@ module.exports = class AttackContext extends Context
     @targets = Engine.entitiesByComponent('selectable')
     for entity in @targets
       entity.on 'click', @toggleSelect
-#    return _.filter(players, (p) -> p.team.id is @team)
+#    return _.filter(units, (p) -> p.team.id is @team)
 
   toggleSelect: (event, entity) =>
     if @selected_entity

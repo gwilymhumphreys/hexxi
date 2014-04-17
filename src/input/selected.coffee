@@ -10,28 +10,28 @@ module.exports = class AllySelectedContext extends Select
 
   activate: (@entity) =>
     console.log 'selectedcontext activated', arguments
-    @ally_players = []
-    @enemy_players = []
+    @ally_units = []
+    @enemy_units = []
     @tiles = []
 
     for entity in Engine.entitiesByComponent('selectable')
-      @ally_players.push(entity) if Engine.getSystem('teams').isAlly(entity)
-      @enemy_players.push(entity) if Engine.getSystem('teams').isEnemy(entity)
+      @ally_units.push(entity) if Engine.getSystem('teams').isAlly(entity)
+      @enemy_units.push(entity) if Engine.getSystem('teams').isEnemy(entity)
     for tile in Engine.entitiesByComponent('tile')
       @tiles.push(tile)
 
-    for entity in @ally_players
+    for entity in @ally_units
       entity.on 'click', @onAllySelect
-    for entity in @enemy_players
+    for entity in @enemy_units
       entity.on 'click', @onEnemySelect
     for entity in @tiles
       entity.on 'click', @onTileSelect
 
   deactivate: =>
     console.log 'selectedcontext deactivated'
-    for entity in @ally_players
+    for entity in @ally_units
       entity.off 'click', @onAllySelect
-    for entity in @enemy_players
+    for entity in @enemy_units
       entity.off 'click', @onEnemySelect
     for entity in @tiles
       entity.off 'click', @onTileSelect

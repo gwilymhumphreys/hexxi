@@ -33,4 +33,4 @@ module.exports = class Selectables extends System
     console.log 'currentteam', entity, @onCurrentTeam(entity)
     return entity.getComponent('selectable') and @onCurrentTeam(entity)
 
-  onCurrentTeam: (entity) => Engine.active_team.id is entity.player.team_id
+  onCurrentTeam: (entity) => Engine.active_team.id is entity.unit.team_id

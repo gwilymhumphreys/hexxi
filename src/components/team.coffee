@@ -5,4 +5,4 @@ module.exports = class Team extends Component
 
   constructor: (@entity, options) ->
     super
-    @players or= []
+    @units or= []

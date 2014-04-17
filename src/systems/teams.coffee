@@ -8,5 +8,5 @@ module.exports = class Teams extends System
     return unless entity.hasComponent('team')
     super
 
-  isAlly: (entity) => entity.player?.team_id? and Engine.active_team.id is entity.player.team_id
-  isEnemy: (entity) => entity.player?.team_id? and Engine.active_team.id isnt entity.player.team_id
+  isAlly: (entity) => entity.team_membership?.team_id? and Engine.active_team.id is entity.team_membership.team_id
+  isEnemy: (entity) => entity.team_membership?.team_id? and Engine.active_team.id isnt entity.team_membership.team_id

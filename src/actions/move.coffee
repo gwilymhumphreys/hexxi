@@ -20,10 +20,8 @@ module.exports = class Move extends Action
   _endOrNext: =>
     if not @complete and not @target or @_reachedTarget()
       if target = @path.pop()
-        console.log 'newtarget', target
         @target = @_toTarget(target)
       else
-        console.log 'notarget', target
         @complete = true
 
   _reachedTarget: =>

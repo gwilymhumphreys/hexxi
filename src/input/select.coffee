@@ -15,7 +15,6 @@ module.exports = class SelectContext extends Context
       entity.off 'click', @select
 
   select: (e, entity) =>
-    console.log 'entityseleting'
     return unless Engine.getSystem('teams').isAlly(entity)
     Engine.getSystem('selectables').select(entity)
     Engine.getSystem('input').setContext('selected', entity)

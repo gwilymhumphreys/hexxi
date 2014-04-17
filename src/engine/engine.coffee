@@ -50,7 +50,6 @@ class Engine extends EventEmitter
       modules = @modules[key] = []
       for base_path in paths
         modules.push(require(path)) for path in registered_modules when path.match("^#{base_path}")
-      console.log 'loaded', paths, modules
 
   appendPaths: (path_obj) =>
     @paths or= []

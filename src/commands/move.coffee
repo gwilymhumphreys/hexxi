@@ -15,6 +15,4 @@ module.exports = class MoveCommand extends Command
     @entity.hex_position.q = @goal.q
     @entity.hex_position.r = @goal.r
 
-    console.log @entity
-
   toJSON: => {command: @_name, data: {entity: @entity.id, path: @path}}

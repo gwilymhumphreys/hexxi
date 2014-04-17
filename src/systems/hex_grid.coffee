@@ -65,7 +65,6 @@ module.exports = class HexGrid extends System
   onClick: (event) =>
 #    coords = @mouseEventCoords(pixi_event.originalEvent)
     coords = @mouseEventCoords(event)
-    console.log @entitiesAtCoords(coords)
     for entity in @entitiesAtCoords(coords)
       entity.emit 'click', entity, event
 

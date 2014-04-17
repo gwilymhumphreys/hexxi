@@ -28,7 +28,7 @@ module.exports = class Entity extends EventEmitter
     else
       Component = @_loadComponent(component_path)
 
-    options or= @options[component_name]
+    options = _.defaults(options or {}, @options[component_name] or= {})
     component = new Component(@, options)
     @addCreatedComponent(component_name, component)
 

@@ -20,7 +20,6 @@ module.exports = class Pathing extends System
     entity.off 'selectable/select', @onEntitySelected
 
   onEntitySelected: (entity) =>
-    console.log 'es', @pathing
     if @pathing
       #TODO: if a friendly, select it / if an enemy, take default action
 #      @pathEnd(entity)
@@ -58,7 +57,6 @@ module.exports = class Pathing extends System
     @hidePath()
     @pathing = false
     @current = null
-    console.log 'pathend', @path
     entity.emit 'pathable/path_end', {path: @path}, entity
 
   hidePath: =>

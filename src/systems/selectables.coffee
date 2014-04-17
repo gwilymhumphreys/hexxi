@@ -30,7 +30,6 @@ module.exports = class Selectables extends System
     entity.emit('selectable/deselect', entity)
 
   canSelect: (entity) =>
-    console.log 'currentteam', entity, @onCurrentTeam(entity)
     return entity.getComponent('selectable') and @onCurrentTeam(entity)
 
   onCurrentTeam: (entity) => Engine.active_team.id is entity.unit.team_id

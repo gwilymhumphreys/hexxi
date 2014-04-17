@@ -9,5 +9,4 @@ module.exports = class Clickable extends Component
     @entity.display_object.click = @onClick
 
   onClick: (event) =>
-#    console.log @entity, event
     @entity.emit 'click', event

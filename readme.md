@@ -2,7 +2,23 @@
 A HTML5 engine for creating hex based games
 
 ##Getting started
-1. Download the
+1. [Download Hexxi](https://raw.githubusercontent.com/gwilymhumphreys/hexxi/master/build/hexxi.js) and include it
+```
+<script src="hexxi.js">
+```
+2. Require Hexxi
+```
+Hexxi = require('hexxi')
+```
+3. Configure Hexxi
+```
+Hexxi.configure({ /* see `Configuration` below */ })
+```
+4. Start Hexxi
+```
+Engine = Hexxi.Engine
+Engine.start()
+```
 
 ##Configuration
 
@@ -51,12 +67,12 @@ Extracting lib from prototype
 The following are included in core
 - board
 - grid_tile
-- unit ** to extract
-- team ** to extract
+- unit
+- team
 
 #####Components
 The following are included in core
-Some pruning is needed
+Some pruning may occur
 - views
   - view
   - circle
@@ -74,8 +90,8 @@ Some pruning is needed
 - relations
 - selectable
 - tile
-- unit ** to extract
-- team ** to extract
+- unit
+- team
 
 #####Systems
 The following are included in core
@@ -90,10 +106,11 @@ The following are included in core
 - pathing
 - renderer
 - selectables
-- teams ** to extract
+- teams
 
 #####Commands & Actions
-Currently only movement is supported
+Only movement is supported
+In progress: Heath system and attacking commands
 
 #####Multiplayer
 Status: In progress

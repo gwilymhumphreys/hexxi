@@ -9,8 +9,15 @@ module.exports = class MultiplayerSystem extends System
     super
     @primus = new Primus(@url)
     @socket = @primus.channel('clients')
+    console.log @socket.id
+    Engine.getSystem('users').setLocalUserId(@socket.id)
     @socket.on 'command', @onCommand
+    @socket.on 'team', @onAssignTeam
     @id = @socket.id
+
+  onAssignTeam: (data) =>
+    console.log 'got team', data
+    Engine.getSystem('teams').setLocalTeam(data.team_id)
 
   onCommand: (data) =>
     console.log 'id', @socket.id

@@ -42,7 +42,6 @@ module.exports = class HexGrid extends System
     return tiles
 
   init: =>
-    console.log 'HEX INIT'
     super
     @createGrid(@options)
     document.addEventListener 'mousemove', @onMousemove

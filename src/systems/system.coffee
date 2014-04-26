@@ -1,3 +1,4 @@
+_ = require 'underscore'
 Engine = require '../engine/engine'
 
 module.exports = class System
@@ -15,3 +16,4 @@ module.exports = class System
   update: ->
   onEntityCreated: (entity) => #@entities.push(entity)
   onEntityDestroyed: (entity) => #todo: remove entity
+  entityById: (id) => _.find(@entities, (e) -> e.id is id)

@@ -1,7 +1,7 @@
 Entity = require './entity'
 
 module.exports = class GridTile extends Entity
-  _name: 'GridTile'
+  _name: 'grid_tile'
 
   constructor: ->
     super
@@ -23,8 +23,5 @@ module.exports = class GridTile extends Entity
 #    @addComponent('selectable')
 
   toString: =>
-    s = "q: #{@q}"
-#    s += ", x: #{@x.toFixed(2)}"
-    s += "\nr: #{@r}"
-#    s += ", y: #{@y.toFixed(2)}"
+    s = "#{@name} [q: #{@q}, r: #{@r}] (#{@id})"
     return s

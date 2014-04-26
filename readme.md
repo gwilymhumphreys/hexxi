@@ -30,6 +30,7 @@ Hexxi.configure({
   paths:
     commands: 'awesomegame/commands/'
     systems: 'awesomegame/systems/'
+})
 ```
 
 #####Systems

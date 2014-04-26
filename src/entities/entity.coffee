@@ -11,6 +11,7 @@ module.exports = class Entity extends EventEmitter
     @components = {}
     @children = []
 
+  toString: => "#{@name} (#{@id})"
   equals: (entity) => @id is entity.id
 
   addComponent: (component_name, component_path, options) =>

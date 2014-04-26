@@ -103,6 +103,4 @@ class Engine extends EventEmitter
     for system in @systems
       system.update()
 
-  setActiveTeam: (team) => @active_team = team
-
 module.exports = new Engine()

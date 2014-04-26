@@ -16,6 +16,7 @@ module.exports =
     GridTile: require './entities/grid_tile'
     Team: require './entities/team'
     Unit: require './entities/unit'
+    User: require './entities/user'
 
 _.extend module.exports, {
   configure: module.exports.Engine.configure

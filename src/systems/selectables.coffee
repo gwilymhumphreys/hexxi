@@ -32,4 +32,4 @@ module.exports = class Selectables extends System
   canSelect: (entity) =>
     return entity.getComponent('selectable') and @onCurrentTeam(entity)
 
-  onCurrentTeam: (entity) => Engine.active_team.id is entity.unit.team_id
+  onCurrentTeam: (entity) => Engine.getSystem('teams').active_team.id is entity.unit.team_id

@@ -10,11 +10,9 @@ module.exports = class Sprite extends View
     @pixi_texture = PIXI.Texture.fromImage(@texture)
     @display_object = new PIXI.Sprite(@pixi_texture)
     if @anchor
-      @display_object.anchor.x = @anchor.x
-      @display_object.anchor.y = @anchor.y
+      _.extend(@display_object.anchor, @anchor)
     if @scale
       @scale = {x: @scale, y: @scale} if _.isNumber(@scale)
-      console.log 'scaling', @scale
-      @display_object.scale = @scale
+      _.extend(@display_object.scale, @scale)
     @display_object.z_index = @z_index if @z_index
     return @display_object

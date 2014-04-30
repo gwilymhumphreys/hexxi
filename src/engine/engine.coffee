@@ -7,9 +7,9 @@ globals = window or global
 
 BUILTIN_PATHS =
 #  actions: 'client/src/actions/'
-#  components: 'client/src/components/'
 #  entities: 'client/src/entities/'
 #  input: 'client/src/input/'
+  components: 'client/src/hexxi/src/components/'
   commands: 'client/src/hexxi/src/commands/'
   systems: 'client/src/hexxi/src/systems/'
 
@@ -17,16 +17,18 @@ class Engine extends EventEmitter
 
   constructor: ->
     super
+    window.Engine = @ # TODO: testing
+    @started = true #TODO: testing
     @paused = true
     @modules = []
     @entities = []
     @systems = []
     @commands_by_name = {}
+    @components_by_name = {}
     @systems_by_name = {}
     @appendPaths(BUILTIN_PATHS)
 
   configure: (@options={}) =>
-    console.trace 'configure'
     if @options.paths
       @appendPaths(@options.paths)
 
@@ -42,7 +44,6 @@ class Engine extends EventEmitter
 
   createSystems: =>
     @addSystem(new System(@options.systems[System._name])) for System in @modules.systems
-    (@commands_by_name[Command::_name] = Command) for Command in @modules.commands
 
   loadModules: =>
     registered_modules = globals.require.list()
@@ -50,6 +51,9 @@ class Engine extends EventEmitter
       modules = @modules[key] = []
       for base_path in paths
         modules.push(require(path)) for path in registered_modules when path.match("^#{base_path}")
+
+    (@commands_by_name[Command::_name] = Command) for Command in @modules.commands
+    (@components_by_name[Component::_name] = Component) for Component in @modules.components when Component::_name
 
   appendPaths: (path_obj) =>
     @paths or= []
@@ -62,7 +66,7 @@ class Engine extends EventEmitter
   #TODO: optimise these
   entityById: (id) => _.find(@entities, (entity) -> entity.id is id)
   entitiesByComponent: (component_name) => _.filter(@entities, (entity) -> entity.hasComponent(component_name))
-  components: (component_name) => entity[component_name] for entity in @entitiesByComponent(component_name)
+  activeComponents: (component_name) => entity[component_name] for entity in @entitiesByComponent(component_name)
 
   initSystem: (system) =>
     system = @getSystem(system) if _.isString(system)
@@ -75,6 +79,8 @@ class Engine extends EventEmitter
   getSystem: (system_name) => @systems_by_name[system_name]
 
   getCommand: (name) => @commands_by_name[name]
+
+  getComponent: (name) => @components_by_name[name]
 
   isEntity: (entity) -> entity instanceof Entity
 
@@ -89,6 +95,7 @@ class Engine extends EventEmitter
   removeEntity: (entity) =>
     @emit 'entity/destroyed', entity
     @entities = (e for e in @entities when e isnt entity)
+
 
   start: =>
     @paused = false

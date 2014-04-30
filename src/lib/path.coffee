@@ -56,7 +56,7 @@ module.exports = class Path
       closing = @open.shift()
 
       # if we're at the end find and return the path
-      if @_equal(closing, @goal)
+      if HexUtils.equal(closing, @goal)
         @closed[@hash(closing)] = closing
         path = @_tracePathToStart(closing)
         return path
@@ -84,10 +84,8 @@ module.exports = class Path
     for dir in [0..5]
       coord = HexUtils.neighbour(node, dir)
       if n = @map[coord.q]?[coord.r]
-        adjacent.push(@_toNode(n)) if n.traversable or (@end_traversable and @_equal(n, @goal))
+        adjacent.push(@_toNode(n)) if n.traversable or (@end_traversable and HexUtils.equal(n, @goal))
     return adjacent
-
-  _equal: (a, b) -> a.q is b.q and a.r is b.r
 
   _tracePathToStart: (node) =>
     path = []

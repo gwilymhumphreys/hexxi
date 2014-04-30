@@ -22,9 +22,8 @@ module.exports = class Pathing extends System
   onEntitySelected: (entity) =>
     if @pathing
       #TODO: if a friendly, select it / if an enemy, take default action
-#      @pathEnd(entity)
-    else
-      @pathStart(entity)
+      @pathEnd(entity)
+    @pathStart(entity)
 
   onEntityDeselected: (entity) =>
     @pathEnd(entity)
@@ -34,7 +33,7 @@ module.exports = class Pathing extends System
   onTileHover: (entity, event) =>
     return unless @pathing
     @hidePath()
-    path_finder = new Path(@map, {end_traversable: true})
+    path_finder = new Path(@map)
     @path = path_finder.findPath(@current.hex_position, entity.hex_position)
     @showPath()
 
@@ -44,7 +43,9 @@ module.exports = class Pathing extends System
     for e in @map_entities
       e.on 'mouseover', @onTileHover
       e.on 'click', @onTileClick
-      positions.push(e.hex_position)
+      pos = _.pick(e.hex_position, 'q', 'r', 'traversable')
+      pos.traversable = true if Engine.getSystem('teams').isEnemy(e)
+      positions.push(pos)
     @map = Path.createMap(positions)
     @pathing = true
     @current = entity

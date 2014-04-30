@@ -15,7 +15,7 @@ module.exports = class HoverEffects extends System
     entity.on 'mouseout', @onMouseout
 
   onMouseover: (entity, event) =>
-    return if entity.hover_effects.hovering
+    return if entity.hover_effects.hovering or Engine.getSystem('teams').isEnemy(entity)
     entity.hover_effects.hovering = true
     EffectUtils.activate(entity, entity.hover_effects)
 

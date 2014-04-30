@@ -9,8 +9,8 @@ module.exports = class Unit extends Entity
 #    @selected_texture or= 'assets/tiles/alienGreen.png'
 #    @hover_texture or= 'assets/tiles/alienBlue.png'
     @addComponent('hex_position')
-    @addComponent('view', 'views/sprite')
-    @addComponent('sub_view', 'views/text')
+    @addComponent('view', 'sprite')
+    @addComponent('sub_view', 'text')
     @addComponent('position')
     @addComponent('relations')
     @addComponent('hover_effects', {outline: {colour: 0xdddd77}})

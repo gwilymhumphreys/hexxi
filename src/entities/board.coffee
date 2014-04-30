@@ -7,7 +7,7 @@ module.exports = class Board extends Entity
     super
     @addComponent('position')
     @addComponent('hex_grid')
-    @addComponent('view', 'views/view')
+    @addComponent('view')
     @addComponent('relations')
     window.board = @
 

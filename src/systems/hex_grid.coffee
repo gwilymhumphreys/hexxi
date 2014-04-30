@@ -87,7 +87,7 @@ module.exports = class HexGrid extends System
   # Entities should have their parent as the game board or another entity on the board
   # So no need to offset by the boards coords by default
   coordsToPixel: (q, r) =>
-    {q, r} = q if arguments.length is 1
+    {q, r} = q unless r?
     return {
       x: @tile_size * Math.sqrt(3) * (q + r/2)
       y: @tile_size * 3/2 * r
@@ -100,14 +100,16 @@ module.exports = class HexGrid extends System
     pos.y += @board.position.y
     return pos
 
+  occupied: (q, r) => (e for e in @entitiesAtCoords(q, r) when not e.hex_position.traversable).length
+
   entitiesAtCoords: (q, r) =>
-    {q, r} = q if arguments.length is 1
+    {q, r} = q unless r?
     (e for e in Engine.entitiesByComponent('hex_position') when e.hex_position.q is q and e.hex_position.r is r)
 
   entitiesNotAtCoords: (q, r) =>
-    {q, r} = q if arguments.length is 1
+    {q, r} = q unless r?
     (e for e in Engine.entitiesByComponent('hex_position') when e.hex_position.q isnt q or e.hex_position.r isnt r)
 
   getTile: (q, r) =>
-    {q, r} = q if arguments.length is 1
+    {q, r} = q unless r?
     return _.find(Engine.entitiesByComponent('tile'), (test) -> test.hex_position.q is q and test.hex_position.r is r)

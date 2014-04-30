@@ -6,6 +6,8 @@ module.exports = class HexUtils
     [-1,  0], [-1, +1], [ 0, +1]
   ]
 
+  @equal: (p1, p2) -> p1?.q is p2?.q and p1?.r is p2?.r
+
   @heightFromSize: (size) => size*2
   @widthFromSize: (size) => Math.sqrt(3)/2 * @heightFromSize(size)
 

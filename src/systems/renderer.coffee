@@ -26,6 +26,7 @@ module.exports = class Renderer extends System
 
   update: =>
     for entity in Engine.entitiesByComponent('view')
+      entity.view.update?()
       entity.view.display_object.position.x = entity.position.x + (entity.view.offset?.x or 0)
       entity.view.display_object.position.y = entity.position.y + (entity.view.offset?.y or 0)
     @renderer.render(@stage)

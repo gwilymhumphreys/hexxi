@@ -7,6 +7,7 @@ module.exports = class TeamsSystem extends System
 
   init: =>
     super
+    window.teams = @
 
   onEntityCreated: (entity) =>
     return unless entity.hasComponent('team')
@@ -17,7 +18,12 @@ module.exports = class TeamsSystem extends System
 
   startingTeam: => @ordered_teams[0]
 
-  setLocalTeam: =>
+  setLocalTeam: (team_id) =>
+    user_id = Engine.getSystem('users').localUser()?.id
+#    team = _.find(@entities, (e) -> e.id is team_id)
+    console.log 'You are player', team_id
+    team = @entities[--team_id]
+    team.user_id = user_id
 
   nextTeam: =>
     return unless @ordered_teams
@@ -26,9 +32,13 @@ module.exports = class TeamsSystem extends System
     return @ordered_teams[next_index]
 
   activate: (team) =>
+    console.log 'activating team', team
+    unless team.id
+      team = @entityById(team)
     console.error 'TeamsSystem: Attempting to activate an entity without a team component', entity unless team.hasComponent('team')
     @activeTeam()?.team.active = false
-    @active_team = if team.id then team else @entityById(team.id)
+    @active_team = team
+    console.log 'Activated team', team.id
 
   createTurnOrder: =>
 #    @ordered_teams = _.shuffle(@entities)
@@ -42,6 +52,8 @@ module.exports = class TeamsSystem extends System
   localIsActive: => @localTeam()?.id is @activeTeam()?.id
   localTeam: => _.find(@entities, (t) -> t.user_id is Engine.getSystem('users').localUser()?.id)
   isAlly: (entity) =>
-    console.log @localTeam()?.id, entity.team_membership?.team_id
+#    console.log 'ally', @localTeam()?.id, entity.team_membership?.team_id
     @localTeam()?.id is entity.team_membership?.team_id
-  isEnemy: (entity) => @localTeam()?.id isnt entity.team_membership?.team_id
+  isEnemy: (entity) =>
+#    console.log 'enemy', @localTeam()?.id, entity.team_membership?.team_id
+    @localTeam()?.id isnt entity.team_membership?.team_id

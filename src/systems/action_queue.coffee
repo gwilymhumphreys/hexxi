@@ -1,3 +1,4 @@
+_ = require 'underscore'
 System = require './system'
 
 #LIFO queue for actions to take
@@ -15,8 +16,11 @@ module.exports = class ActionQueue extends System
 
   update: =>
 #    console.log '@current_action', @current_action
-    @current_action = null if @current_action?.complete
-    return unless @current_action or @actions.length
-    if @current_action or= @pop()
-      @current_action.update()
+#    @current_action = null if @current_action?.complete
+#    return unless @current_action or @actions.length
+#    if @current_action or= @pop()
+#      @current_action.update()
 
+    @actions = _.without(@actions, (a) -> a.complete)
+    for action in @actions
+      action.update()

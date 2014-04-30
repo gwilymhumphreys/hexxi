@@ -9,11 +9,11 @@ module.exports = class Relations extends Component
 
   setParent: (entity) ->
     @parent = entity
-    @emit 'parent/changed', @entity
+    @entity.emit 'parent/changed', @entity
     return @entity
 
   addChild: (entity) =>
     entity.relations.setParent(@)
     @children.push(entity)
-    @emit 'child/added', @entity
+    @entity.emit 'child/added', @entity
     return @entity

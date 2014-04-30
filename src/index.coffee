@@ -4,11 +4,15 @@ module.exports =
   Engine: require './engine/engine'
 
   Action: require './actions/action'
+  actions:
+    Move: require './actions/move'
+
   Command: require './commands/command'
   Component: require './components/component'
   Entity: require './entities/entity'
   InputContext: require './input/context'
   System: require './systems/system'
+  HexUtils: require './lib/hex_utils'
 
   entities:
     Entity: require './entities/entity'

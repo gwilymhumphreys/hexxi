@@ -1,13 +1,13 @@
 _ = require 'underscore'
 EventEmitter = require '../lib/event_emitter'
-
+Engine = null
 entity_count = 0
 
 module.exports = class Entity extends EventEmitter
 
   constructor: (@options={}) ->
     super
-    @id = ++entity_count
+    @id = options.id or ++entity_count
     @components = {}
     @children = []
 
@@ -45,4 +45,6 @@ module.exports = class Entity extends EventEmitter
 
   hasComponent: (component_name) => !!@[component_name]
 
-  _loadComponent: (component_name) -> require "../components/#{component_name}"
+  _loadComponent: (component_name) ->
+    Engine or= require '../engine/engine'
+    Engine.getComponent(component_name)

@@ -41,6 +41,23 @@ class Engine extends EventEmitter
     for system in @systems
       system.init(@)
     @update()
+    @bindEvents()
+
+  bindEvents: =>
+    @element = @getSystem('renderer').view
+    #TODO: Not sure if this is the best way to handle left / right clicks
+    @element.addEventListener 'click', @onClick, false
+    @element.addEventListener 'contextmenu', @onRightClick, false
+
+  onRightClick: (event) =>
+    event.preventDefault()
+    @emit 'rightclick', event
+
+  onClick: (event) =>
+    # Might be needed in some browsers, have not tested. Chrome doesn't seem to trigger click event on right clicks
+    return unless event.which is 1
+    event.preventDefault()
+    @emit 'click', event
 
   createSystems: =>
     @addSystem(new System(@options.systems[System._name])) for System in @modules.systems
@@ -95,7 +112,6 @@ class Engine extends EventEmitter
   removeEntity: (entity) =>
     @emit 'entity/destroyed', entity
     @entities = (e for e in @entities when e isnt entity)
-
 
   start: =>
     @paused = false

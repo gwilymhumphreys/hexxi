@@ -45,7 +45,7 @@ module.exports = class HexGrid extends System
     super
     @createGrid(@options)
     document.addEventListener 'mousemove', @onMousemove
-    document.addEventListener 'click', @onClick
+    Engine.on 'click', @onClick
 
   onEntityCreated: (entity) =>
     if entity.hasComponent('hex_grid')

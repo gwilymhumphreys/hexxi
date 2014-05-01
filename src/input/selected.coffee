@@ -25,6 +25,7 @@ module.exports = class AllySelectedContext extends Select
       entity.on 'click', @onEnemySelect
     for entity in @tiles
       entity.on 'click', @onTileSelect
+    Engine.on 'rightclick', @onRightClick
 
   deactivate: =>
     for entity in @ally_units
@@ -34,10 +35,16 @@ module.exports = class AllySelectedContext extends Select
     for entity in @tiles
       entity.off 'click', @onTileSelect
 
+  onRightClick: =>
+    Engine.getSystem('selectables').deselect(@entity)
+    Engine.getSystem('input').setContext('select')
+
   onAllySelect: (entity, event) =>
     if selected = Engine.getSystem('selectables').toggle(entity)
+      # Select another entity
       Engine.getSystem('input').setContext('selected', entity)
     else
+      # Deselect this entity
       Engine.getSystem('input').setContext('select')
 
   onEnemySelect: (entity, event) =>

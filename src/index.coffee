@@ -6,14 +6,9 @@ module.exports =
   Action: require './actions/action'
   actions:
     Move: require './actions/move'
+    DirectMove: require './actions/direct_move'
 
-  Command: require './commands/command'
-  Component: require './components/component'
   Entity: require './entities/entity'
-  InputContext: require './input/context'
-  System: require './systems/system'
-  HexUtils: require './lib/hex_utils'
-
   entities:
     Entity: require './entities/entity'
     Board: require './entities/board'
@@ -21,6 +16,12 @@ module.exports =
     Team: require './entities/team'
     Unit: require './entities/unit'
     User: require './entities/user'
+
+  Command: require './commands/command'
+  Component: require './components/component'
+  InputContext: require './input/context'
+  System: require './systems/system'
+  HexUtils: require './lib/hex_utils'
 
 _.extend module.exports, {
   configure: module.exports.Engine.configure

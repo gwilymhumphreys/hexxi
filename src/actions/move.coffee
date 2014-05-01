@@ -9,8 +9,12 @@ module.exports = class Move extends Action
 
   constructor: ->
     super
+    @init()
+
+  init: =>
     throw new Error 'Move action missing entity' unless @entity
     throw new Error 'Move action missing path' unless @path
+    @speed = 0.2
 
   update: =>
     @_endOrNext()
@@ -30,8 +34,8 @@ module.exports = class Move extends Action
     Math.abs(@entity.position.x - @target.position.x) < HIT_THRESHOLD and Math.abs(@entity.position.y - @target.position.y) < HIT_THRESHOLD
 
   _updatePosition: (entity, target) =>
-    dx = (target.position.x - entity.position.x) * 0.2
-    dy = (target.position.y - entity.position.y) * 0.2
+    dx = (target.position.x - entity.position.x) * @speed
+    dy = (target.position.y - entity.position.y) * @speed
     entity.position.x += dx
     entity.position.y += dy
 

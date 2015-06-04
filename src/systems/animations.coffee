@@ -1,11 +1,8 @@
-Engine = require '../lib/engine'
 System = require './system'
 tweene = require 'tween'
 
 module.exports = class AnimationSystem extends System
   _name: 'animations'
-
-  constructor: ->
 
   onEntityCreated: (entity) =>
     return unless entity.hasComponent('animations')

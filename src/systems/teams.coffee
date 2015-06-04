@@ -1,5 +1,4 @@
 _ = require 'underscore'
-Engine = require '../lib/engine'
 System = require './system'
 
 module.exports = class TeamsSystem extends System
@@ -19,7 +18,7 @@ module.exports = class TeamsSystem extends System
   startingTeam: => @ordered_teams[0]
 
   setLocalTeam: (team_id) =>
-    user_id = Engine.getSystem('users').localUser()?.id
+    user_id = @engine.getSystem('users').localUser()?.id
 #    team = _.find(@entities, (e) -> e.id is team_id)
     console.log 'You are player', team_id
     team = @entities[--team_id]
@@ -50,7 +49,7 @@ module.exports = class TeamsSystem extends System
   activeTeam: => @active_team
   activeUserId: => @active_team?.user_id
   localIsActive: => @localTeam()?.id is @activeTeam()?.id
-  localTeam: => _.find(@entities, (t) -> t.user_id is Engine.getSystem('users').localUser()?.id)
+  localTeam: => _.find(@entities, (t) -> t.user_id is @engine.getSystem('users').localUser()?.id)
   isAlly: (entity) =>
 #    console.log 'ally', @localTeam()?.id, entity.team_membership?.team_id
     @localTeam()?.id is entity.team_membership?.team_id

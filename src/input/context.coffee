@@ -1,5 +1,4 @@
 _ = require 'underscore'
-Engine = require '../lib/engine'
 
 module.exports = class Context
 
@@ -7,8 +6,9 @@ module.exports = class Context
     _.extend(@, options)
     @entities = []
     @sub_contexts = []
-    Engine.on 'entity/created', @onEntityCreated
-    Engine.on 'entity/destroyed', @onEntityDestroyed
+    @engine or= require '../lib/engine'
+    @engine.on 'entity/created', @onEntityCreated
+    @engine.on 'entity/destroyed', @onEntityDestroyed
 
   onEntityCreated: (entity) =>
   onEntityDestroyed: (entity) => #todo: remove entity
@@ -18,7 +18,7 @@ module.exports = class Context
     @sub_contexts.push(new Ctx)
 
   bindEvents: =>
-    for entity in Engine.entities
+    for entity in @engine.entities
       entity.on 'click', @onEntityClick
 
   onEntityClick: =>

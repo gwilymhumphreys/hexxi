@@ -1,4 +1,3 @@
-Engine = require '../lib/engine'
 System = require './system'
 EffectUtils = require '../lib/effect_utils'
 

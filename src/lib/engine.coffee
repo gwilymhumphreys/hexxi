@@ -1,17 +1,75 @@
 _ = require 'underscore'
-EventEmitter = require 'event_emitter'
-
+EventEmitter = require './event_emitter'
+StateManager = require '../state/state_manager'
 Entity = require '../entities/entity'
 
 globals = window or global
 
 BUILTIN_PATHS =
-#  actions: 'client/src/actions/'
-#  entities: 'client/src/entities/'
-  input: 'client/src/input/'
-  components: 'client/src/hexxi/src/components/'
-  commands: 'client/src/hexxi/src/commands/'
-  systems: 'client/src/hexxi/src/systems/'
+
+  actions:
+    action: require '../actions/action'
+    direct_move: require '../actions/direct_move'
+    move: require '../actions/move'
+
+  entities:
+    board: require '../entities/board'
+    entity: require '../entities/entity'
+    grid_tile: require '../entities/grid_tile'
+    team: require '../entities/team'
+    unit: require '../entities/unit'
+    user: require '../entities/user'
+
+  input:
+    context: require '../input/context'
+    select: require '../input/select'
+    selected: require '../input/selected'
+
+  commands:
+    move: require '../commands/move'
+
+  components:
+    animations: require '../components/animations'
+    clickable: require '../components/clickable'
+    component: require '../components/component'
+    hex_grid: require '../components/hex_grid'
+    hex_position: require '../components/hex_position'
+    highlight: require '../components/highlight'
+    hover_effects: require '../components/hover_effects'
+    pathable: require '../components/pathable'
+    position: require '../components/position'
+    relations: require '../components/relations'
+    selectable: require '../components/selectable'
+    team: require '../components/team'
+    team_membership: require '../components/team_membership'
+    tile: require '../components/tile'
+    user: require '../components/user'
+
+    circle: require '../components/views/circle'
+    sprite: require '../components/views/sprite'
+    text: require '../components/views/text'
+    view: require '../components/views/view'
+
+  systems:
+    action_queue: require '../systems/action_queue'
+    animations: require '../systems/animations'
+    command_queue: require '../systems/command_queue'
+    hex_grid: require '../systems/hex_grid'
+    highlights: require '../systems/highlights'
+    hover_effects: require '../systems/hover_effects'
+    input: require '../systems/input'
+    multiplayer: require '../systems/multiplayer'
+    pathing: require '../systems/pathing'
+    renderer: require '../systems/renderer'
+    selectables: require '../systems/selectables'
+    system: require '../systems/system'
+    teams: require '../systems/teams'
+    users: require '../systems/users'
+
+MODULE_CATEGORIES = _.keys(BUILTIN_PATHS)
+
+DEFAULT_OPTIONS =
+  states: {}
 
 class Engine extends EventEmitter
 
@@ -28,7 +86,9 @@ class Engine extends EventEmitter
     @systems_by_name = {}
     @appendPaths(BUILTIN_PATHS)
 
-  configure: (@options={}) =>
+  configure: (options={}) =>
+    @options = _.defaults(options, DEFAULT_OPTIONS)
+
     if @options.paths
       @appendPaths(@options.paths)
 
@@ -38,6 +98,7 @@ class Engine extends EventEmitter
     @init()
 
   init: =>
+    @state = new StateManager(@options.states)
     for system in @systems
       system.init(@)
     @update()
@@ -63,11 +124,16 @@ class Engine extends EventEmitter
     @addSystem(new System(@options.systems[System._name])) for System in @modules.systems
 
   loadModules: =>
-    registered_modules = globals.require.list()
-    for key, paths of @paths
-      modules = @modules[key] = []
-      for base_path in paths
-        modules.push(require(path)) for path in registered_modules when path.match("^#{base_path}")
+    for category in MODULE_CATEGORIES
+      console.log 'category', category
+      @modules[category] = []
+      console.log '@paths[category]', @paths[category]
+      for name, path of @paths[category]
+        if _.isString(path)
+          module = require(path)
+        else
+          module = path
+        @modules[category].push(module)
 
     (@commands_by_name[Command::_name] = Command) for Command in @modules.commands
     (@components_by_name[Component::_name] = Component) for Component in @modules.components when Component::_name
@@ -76,9 +142,8 @@ class Engine extends EventEmitter
     @paths or= []
     for key, paths of path_obj
       return console.error "Hexxi::configure - given key is not used by Hexxi, maybe a typo?: #{key}" unless BUILTIN_PATHS[key]
-      paths = [paths] unless _.isArray(paths)
-      @paths[key] or= []
-      @paths[key].push(path) for path in paths when path not in @paths[key]
+      @paths[key] or= {}
+      _.extend(@paths[key], paths)
 
   #TODO: optimise these
   entityById: (id) => _.find(@entities, (entity) -> entity.id is id)
@@ -94,11 +159,8 @@ class Engine extends EventEmitter
     @systems_by_name[system._name] = system
 
   getSystem: (system_name) => @systems_by_name[system_name]
-
   getCommand: (name) => @commands_by_name[name]
-
   getComponent: (name) => @components_by_name[name]
-
   getInputContext: (name) => _.find(@modules.input, (c) -> c::_name is name)
 
   isEntity: (entity) -> entity instanceof Entity

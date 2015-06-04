@@ -1,17 +1,17 @@
 _ = require 'underscore'
-Engine = require '../lib/engine'
 
 module.exports = class System
 
   constructor: (@options={}) ->
     (@[key] = value) for key, value of @options
+    @engine or= require '../lib/engine'
 
   init: =>
     @entities = []
-    for entity in Engine.entities
+    for entity in @engine.entities
       @onEntityCreated(entity)
-    Engine.on 'entity/created', @onEntityCreated
-    Engine.on 'entity/destroyed', @onEntityDestroyed
+    @engine.on 'entity/created', @onEntityCreated
+    @engine.on 'entity/destroyed', @onEntityDestroyed
 
   update: ->
   onEntityCreated: (entity) => #@entities.push(entity)

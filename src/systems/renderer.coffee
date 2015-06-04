@@ -1,11 +1,11 @@
 PIXI = require 'pixi'
-Engine = require '../lib/engine'
 System = require './system'
 
 module.exports = class Renderer extends System
   _name: 'renderer'
 
   constructor: ->
+    super
     @stage = new PIXI.Stage(0x66FF99)
     @renderer = PIXI.autoDetectRenderer(800, 600)
     @view = @renderer.view
@@ -26,7 +26,7 @@ module.exports = class Renderer extends System
   onParentChanged: (entity) => @setStage(entity)
 
   update: =>
-    for entity in Engine.entitiesByComponent('view')
+    for entity in @engine.entitiesByComponent('view')
       entity.view.update?()
       entity.view.display_object.position.x = entity.position.x + (entity.view.offset?.x or 0)
       entity.view.display_object.position.y = entity.position.y + (entity.view.offset?.y or 0)

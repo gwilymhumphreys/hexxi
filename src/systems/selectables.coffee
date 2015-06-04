@@ -1,4 +1,3 @@
-Engine = require '../lib/engine'
 System = require './system'
 
 module.exports = class Selectables extends System
@@ -30,4 +29,4 @@ module.exports = class Selectables extends System
     entity.emit('selectable/deselect', entity)
 
   canSelect: (entity) =>
-    return entity.getComponent('selectable') and Engine.getSystem('teams').isAlly(entity)
+    return entity.getComponent('selectable') and @engine.getSystem('teams').isAlly(entity)

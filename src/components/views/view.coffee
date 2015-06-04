@@ -1,3 +1,4 @@
+PIXI = require 'pixi'
 Component = require '../component'
 
 module.exports = class View extends Component

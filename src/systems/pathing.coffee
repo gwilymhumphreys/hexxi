@@ -1,4 +1,3 @@
-Engine = require '../lib/engine'
 System = require './system'
 Path = require '../lib/path'
 
@@ -38,13 +37,13 @@ module.exports = class Pathing extends System
     @showPath()
 
   pathStart: (entity) =>
-    @map_entities = Engine.entitiesByComponent('hex_position')
+    @map_entities = @engine.entitiesByComponent('hex_position')
     positions = []
     for e in @map_entities
       e.on 'mouseover', @onTileHover
       e.on 'click', @onTileClick
       pos = _.pick(e.hex_position, 'q', 'r', 'traversable')
-      pos.traversable = true if Engine.getSystem('teams').isEnemy(e)
+      pos.traversable = true if @engine.getSystem('teams').isEnemy(e)
       positions.push(pos)
     @map = Path.createMap(positions)
     @pathing = true
@@ -63,13 +62,13 @@ module.exports = class Pathing extends System
   hidePath: =>
     if @path
       for coords in @path
-        tile = Engine.getSystem('hex_grid').getTile(coords)
+        tile = @engine.getSystem('hex_grid').getTile(coords)
         tile.emit 'highlight/off', tile
 
   showPath: =>
     if @path
       for coords in @path
-        tile = Engine.getSystem('hex_grid').getTile(coords)
+        tile = @engine.getSystem('hex_grid').getTile(coords)
         tile.emit 'highlight/on', tile
 
 #  _testPath: =>

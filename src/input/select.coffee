@@ -1,5 +1,4 @@
 _ = require 'underscore'
-Engine = require '../lib/engine'
 Context = require './context'
 
 module.exports = class SelectContext extends Context
@@ -7,7 +6,7 @@ module.exports = class SelectContext extends Context
 
   activate: =>
     @active = true
-    @entities = Engine.entitiesByComponent('selectable')
+    @entities = @engine.entitiesByComponent('selectable')
     for entity in @entities
       entity.on 'click', @select
 
@@ -22,8 +21,8 @@ module.exports = class SelectContext extends Context
       entity.off 'click', @select
 
   select: (entity, event) =>
-    return unless Engine.started
-    return unless Engine.getSystem('teams').isAlly(entity)
-    Engine.getSystem('selectables').select(entity)
-    Engine.getSystem('input').setContext('selected', entity)
+    return unless @engine.started
+    return unless @engine.getSystem('teams').isAlly(entity)
+    @engine.getSystem('selectables').select(entity)
+    @engine.getSystem('input').setContext('selected', entity)
 

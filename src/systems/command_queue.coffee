@@ -1,4 +1,3 @@
-Engine = require '../lib/engine'
 System = require './system'
 MultiplayerSystem = null
 
@@ -16,7 +15,7 @@ module.exports = class CommandQueue extends System
   pause: (item) -> @items.pause(item)
 
   update: =>
-    MultiplayerSystem or= Engine.getSystem('multiplayer')
+    MultiplayerSystem or= @engine.getSystem('multiplayer')
     if @current_command = @pop()
       MultiplayerSystem.sendCommand(@current_command) unless @current_command.options.remote
       @current_command.execute()

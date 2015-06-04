@@ -1,5 +1,4 @@
 _ = require 'underscore'
-Engine = require '../lib/engine'
 System = require './system'
 HexUtils = require '../lib/hex_utils'
 Board = require '../entities/board'
@@ -9,6 +8,7 @@ module.exports = class HexGrid extends System
   _name: 'hex_grid'
 
   constructor: (@options={}) ->
+    super
     _.defaults(@options, {
       tile_entity: GridTile
       symmetrical: true
@@ -20,15 +20,15 @@ module.exports = class HexGrid extends System
     @tile_height ?= HexUtils.heightFromSize(@tile_size)
     @tile_width ?= HexUtils.widthFromSize(@tile_size)
 
-    unless Engine.isEntity(@board)
+    unless @engine.isEntity(@board)
       @board = new Board(_.defaults(@board or {}, {position: {x: 10, y: 10}}))
     @board.position.x += Math.floor(@rows/2) * @tile_width
     @board.position.y += 3/4 * Math.floor(@columns/2) * @tile_height
 
   createGrid: =>
-    Engine.addEntity(@board)
+    @engine.addEntity(@board)
     @tiles = @createTiles()
-    Engine.addEntity(tile) for tile in @tiles
+    @engine.addEntity(tile) for tile in @tiles
 
   createTiles:  =>
     tiles = []
@@ -45,7 +45,7 @@ module.exports = class HexGrid extends System
     super
     @createGrid(@options)
     document.addEventListener 'mousemove', @onMousemove
-    Engine.on 'click', @onClick
+    @engine.on 'click', @onClick
 
   onEntityCreated: (entity) =>
     if entity.hasComponent('hex_grid')
@@ -68,7 +68,7 @@ module.exports = class HexGrid extends System
       entity.emit 'click', entity, event
 
   update: =>
-    for entity in Engine.entitiesByComponent('hex_position')
+    for entity in @engine.entitiesByComponent('hex_position')
       if entity.hex_position.has_moved
         @setScreenCoords(entity)
         entity.hex_position.has_moved = false
@@ -104,12 +104,12 @@ module.exports = class HexGrid extends System
 
   entitiesAtCoords: (q, r) =>
     {q, r} = q unless r?
-    (e for e in Engine.entitiesByComponent('hex_position') when e.hex_position.q is q and e.hex_position.r is r)
+    (e for e in @engine.entitiesByComponent('hex_position') when e.hex_position.q is q and e.hex_position.r is r)
 
   entitiesNotAtCoords: (q, r) =>
     {q, r} = q unless r?
-    (e for e in Engine.entitiesByComponent('hex_position') when e.hex_position.q isnt q or e.hex_position.r isnt r)
+    (e for e in @engine.entitiesByComponent('hex_position') when e.hex_position.q isnt q or e.hex_position.r isnt r)
 
   getTile: (q, r) =>
     {q, r} = q unless r?
-    return _.find(Engine.entitiesByComponent('tile'), (test) -> test.hex_position.q is q and test.hex_position.r is r)
+    return _.find(@engine.entitiesByComponent('tile'), (test) -> test.hex_position.q is q and test.hex_position.r is r)

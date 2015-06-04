@@ -1,5 +1,5 @@
 _ = require 'underscore'
-Engine = require '../engine/engine'
+Engine = require '../lib/engine'
 
 module.exports = class Context
 

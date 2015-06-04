@@ -1,6 +1,6 @@
 _ = require 'underscore'
 Command = require './command'
-Engine = require '../engine/engine'
+Engine = require '../lib/engine'
 MoveAction = require '../actions/move'
 
 module.exports = class MoveCommand extends Command

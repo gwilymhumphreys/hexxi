@@ -1,5 +1,5 @@
 _ = require 'underscore'
-EventEmitter = require '../lib/event_emitter'
+EventEmitter = require 'event_emitter'
 
 Entity = require '../entities/entity'
 
@@ -8,7 +8,7 @@ globals = window or global
 BUILTIN_PATHS =
 #  actions: 'client/src/actions/'
 #  entities: 'client/src/entities/'
-#  input: 'client/src/input/'
+  input: 'client/src/input/'
   components: 'client/src/hexxi/src/components/'
   commands: 'client/src/hexxi/src/commands/'
   systems: 'client/src/hexxi/src/systems/'
@@ -20,7 +20,7 @@ class Engine extends EventEmitter
     window.Engine = @ # TODO: testing
     @started = true #TODO: testing
     @paused = true
-    @modules = []
+    @modules = {}
     @entities = []
     @systems = []
     @commands_by_name = {}
@@ -98,6 +98,8 @@ class Engine extends EventEmitter
   getCommand: (name) => @commands_by_name[name]
 
   getComponent: (name) => @components_by_name[name]
+
+  getInputContext: (name) => _.find(@modules.input, (c) -> c::_name is name)
 
   isEntity: (entity) -> entity instanceof Entity
 

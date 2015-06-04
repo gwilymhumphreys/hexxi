@@ -1,4 +1,4 @@
-Engine = require '../engine/engine'
+Engine = require '../lib/engine'
 System = require './system'
 CONTEXTS = ['attack', 'select', 'selected']
 
@@ -18,7 +18,7 @@ module.exports = class InputSystem extends System
     @current_context.activate(args...)
 
   addContext: (name) =>
-    Context = require("../input/#{name}")
+    Context = Engine.getInputContext(name)
     @contexts[name] = new Context()
 
 #  onEntityCreated: (entity) =>

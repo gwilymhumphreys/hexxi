@@ -1,5 +1,5 @@
 _ = require 'underscore'
-Engine = require '../engine/engine'
+Engine = require '../lib/engine'
 System = require './system'
 HexUtils = require '../lib/hex_utils'
 Board = require '../entities/board'

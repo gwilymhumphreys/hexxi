@@ -1,6 +1,6 @@
 _ = require 'underscore'
 Action = require './action'
-Engine = require '../engine/engine'
+Engine = require '../lib/engine'
 tweene = require 'tween'
 
 HIT_THRESHOLD = 0.01

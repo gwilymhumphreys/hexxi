@@ -1,4 +1,4 @@
-Engine = require '../engine/engine'
+Engine = require '../lib/engine'
 System = require './system'
 User = require '../entities/user'
 

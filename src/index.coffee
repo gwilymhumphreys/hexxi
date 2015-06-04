@@ -1,7 +1,7 @@
 _ = require 'underscore'
 
 module.exports =
-  Engine: require './engine/engine'
+  Engine: require './lib/engine'
 
   Action: require './actions/action'
   actions:
@@ -17,9 +17,16 @@ module.exports =
     Unit: require './entities/unit'
     User: require './entities/user'
 
-  Command: require './commands/command'
-  Component: require './components/component'
   InputContext: require './input/context'
+  input:
+    Select: require './input/select'
+    Selected: require './input/selected'
+
+  Command: require './commands/command'
+  commands:
+    Move: require './commands/move'
+
+  Component: require './components/component'
   System: require './systems/system'
   HexUtils: require './lib/hex_utils'
 

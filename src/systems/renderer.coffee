@@ -1,5 +1,5 @@
 PIXI = require 'pixi'
-Engine = require '../engine/engine'
+Engine = require '../lib/engine'
 System = require './system'
 
 module.exports = class Renderer extends System

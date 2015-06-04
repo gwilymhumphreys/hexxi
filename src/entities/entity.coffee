@@ -46,5 +46,5 @@ module.exports = class Entity extends EventEmitter
   hasComponent: (component_name) => !!@[component_name]
 
   _loadComponent: (component_name) ->
-    Engine or= require '../engine/engine'
+    Engine or= require '../lib/engine'
     Engine.getComponent(component_name)

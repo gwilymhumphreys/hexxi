@@ -1,3 +1,4 @@
+_ = require 'underscore'
 System = require './system'
 Path = require '../lib/path'
 

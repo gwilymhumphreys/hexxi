@@ -49,7 +49,7 @@ module.exports = class TeamsSystem extends System
   activeTeam: => @active_team
   activeUserId: => @active_team?.user_id
   localIsActive: => @localTeam()?.id is @activeTeam()?.id
-  localTeam: => _.find(@entities, (t) -> t.user_id is @engine.getSystem('users').localUser()?.id)
+  localTeam: => _.find(@entities, (t) => t.user_id is @engine.getSystem('users').localUser()?.id)
   isAlly: (entity) =>
 #    console.log 'ally', @localTeam()?.id, entity.team_membership?.team_id
     @localTeam()?.id is entity.team_membership?.team_id

@@ -1,3 +1,4 @@
+_ = require 'underscore'
 System = require './system'
 User = require '../entities/user'
 
@@ -11,7 +12,7 @@ module.exports = class Users extends System
     return unless entity.hasComponent('user')
     super
 
-  localUser: => _.find(@entities, (u) -> u.user.is_local)
+  localUser: => _.find(@entities, (u) => u.user.is_local)
 
   setLocalUserId: (id) =>
     @localUser.id = id

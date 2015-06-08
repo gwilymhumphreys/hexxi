@@ -1,5 +1,4 @@
 _ = require 'underscore'
-Engine = require '../lib/engine'
 Move = require './move'
 tweene = require 'tween'
 
@@ -13,6 +12,6 @@ module.exports = class DirectMove extends Move
 
   update: =>
     if @complete = @_reachedTarget()
-      Engine.emit('enter_tile', @entity, @target.hex_position, {from: @entity.hex_position})
+      @engine.emit('enter_tile', @entity, @target.hex_position, {from: @entity.hex_position})
       return
     @_updatePosition(@entity, @target)

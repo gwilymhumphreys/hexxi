@@ -1,4 +1,5 @@
-HexUtils  = require './hex_utils'
+_ = require 'underscore'
+HexUtils = require './hex_utils'
 
 MOVE_COST = 1
 

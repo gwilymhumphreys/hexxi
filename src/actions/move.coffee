@@ -1,6 +1,5 @@
 _ = require 'underscore'
 Action = require './action'
-Engine = require '../lib/engine'
 tweene = require 'tween'
 
 HIT_THRESHOLD = 0.01
@@ -26,7 +25,7 @@ module.exports = class Move extends Action
       if target = @path.pop()
         from = @target
         @target = @_toTarget(target)
-        Engine.emit('enter_tile', @entity, @target.hex_position, {from: from?.hex_position})
+        @engine.emit('enter_tile', @entity, @target.hex_position, {from: from?.hex_position})
       else
         @complete = true
 
@@ -42,7 +41,7 @@ module.exports = class Move extends Action
   _toTarget: (hex_position) =>
     # TODO: see if more robustness needed
     return hex_position if hex_position.position
-    pixel_coords = Engine.getSystem('hex_grid').coordsToPixel(hex_position)
+    pixel_coords = @engine.getSystem('hex_grid').coordsToPixel(hex_position)
     return {
       position: pixel_coords
       hex_position: hex_position

@@ -1,4 +1,4 @@
-_ = require 'underscore'
+_ = require 'lodash'
 System = require './system'
 User = require '../entities/user'
 

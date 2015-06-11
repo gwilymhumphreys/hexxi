@@ -1,4 +1,4 @@
-_ = require 'underscore'
+_ = require 'lodash'
 System = require './system'
 HexUtils = require '../lib/hex_utils'
 Board = require '../entities/board'

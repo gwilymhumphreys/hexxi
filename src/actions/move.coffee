@@ -1,4 +1,4 @@
-_ = require 'underscore'
+_ = require 'lodash'
 Action = require './action'
 tweene = require 'tween'
 

@@ -1,4 +1,4 @@
-_ = require 'underscore'
+_ = require 'lodash'
 Context = require './context'
 
 module.exports = class SelectContext extends Context

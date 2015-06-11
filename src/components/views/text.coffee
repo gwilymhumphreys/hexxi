@@ -1,4 +1,4 @@
-_ = require 'underscore'
+_ = require 'lodash'
 View = require './view'
 PIXI = require 'pixi'
 

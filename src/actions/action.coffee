@@ -1,4 +1,4 @@
-_ = require 'underscore'
+_ = require 'lodash'
 EventEmitter = require '../lib/event_emitter'
 
 module.exports = class Action extends EventEmitter

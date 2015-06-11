@@ -39,8 +39,9 @@
     "gulp-util": "2.2.x"
   },
   "dependencies": {
-    "underscore": "1.5.x",
+    "inflection": "1.2.x",
+    "lodash": "^3.9.3",
     "moment": "2.0.x",
-    "inflection": "1.2.x"
+    "underscore": "1.5.x"
   }
 }

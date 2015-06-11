@@ -1,4 +1,4 @@
-_ = require 'underscore'
+_ = require 'lodash'
 EventEmitter = require './event_emitter'
 StateManager = require '../state/state_manager'
 Entity = require '../entities/entity'

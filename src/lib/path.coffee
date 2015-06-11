@@ -1,4 +1,4 @@
-_ = require 'underscore'
+_ = require 'lodash'
 HexUtils = require './hex_utils'
 
 MOVE_COST = 1

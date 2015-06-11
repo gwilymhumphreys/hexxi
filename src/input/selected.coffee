@@ -1,4 +1,4 @@
-_ = require 'underscore'
+_ = require 'lodash'
 MoveCommand = require '../commands/move'
 Select = require './select'
 

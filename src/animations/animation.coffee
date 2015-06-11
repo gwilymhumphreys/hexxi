@@ -1,7 +1,7 @@
 _ = require 'lodash'
 EventEmitter = require '../lib/event_emitter'
 
-module.exports = class Action extends EventEmitter
+module.exports = class Animation extends EventEmitter
 
   constructor: (options) ->
     _.extend(@, options)

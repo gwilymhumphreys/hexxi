@@ -96,7 +96,6 @@ Some pruning may occur
 
 #####Systems
 The following are included in core
-- action_queue
 - animations
 - command_queue
 - hex_grid

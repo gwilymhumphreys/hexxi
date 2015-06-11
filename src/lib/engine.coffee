@@ -51,7 +51,6 @@ BUILTIN_PATHS =
     view: require '../components/views/view'
 
   systems:
-    action_queue: require '../systems/action_queue'
     animations: require '../systems/animations'
     command_queue: require '../systems/command_queue'
     hex_grid: require '../systems/hex_grid'
@@ -125,9 +124,7 @@ class Engine extends EventEmitter
 
   loadModules: =>
     for category in MODULE_CATEGORIES
-      console.log 'category', category
       @modules[category] = []
-      console.log '@paths[category]', @paths[category]
       for name, path of @paths[category]
         if _.isString(path)
           module = require(path)
@@ -186,6 +183,9 @@ class Engine extends EventEmitter
   update: =>
     window.requestAnimationFrame(@update)
     return if @paused
+
+    for system in @systems when system.preUpdate
+      system.preUpdate()
 
     for system in @systems
       system.update()

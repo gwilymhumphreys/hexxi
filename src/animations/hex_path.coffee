@@ -1,18 +1,16 @@
 _ = require 'lodash'
-Action = require './action'
+Animation = require './animation'
 tweene = require 'tween'
 
 HIT_THRESHOLD = 0.01
 
-module.exports = class Move extends Action
+module.exports = class HexPathAnimation extends Animation
 
   constructor: ->
     super
-    @init()
-
-  init: =>
-    throw new Error 'Move action missing entity' unless @entity
-    throw new Error 'Move action missing path' unless @path
+    throw new Error 'HexPathAnimation missing entity' unless @entity
+    throw new Error 'HexPathAnimation missing path' unless @path
+    @path = [@path] unless _.isArray(@path)
     @speed = 0.2
 
   update: =>

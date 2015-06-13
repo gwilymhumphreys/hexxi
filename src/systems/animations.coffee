@@ -1,6 +1,9 @@
+_ = require 'lodash'
+tweene = require 'tween.js'
+
 System = require './system'
 HexPathAnimation = require '../animations/hex_path'
-tweene = require 'tween'
+LinearAnimation = require '../animations/linear'
 
 module.exports = class AnimationSystem extends System
   _name: 'animations'
@@ -49,15 +52,26 @@ module.exports = class AnimationSystem extends System
   update: =>
     tweene.update()
     if @animations.length
-#      running_animations = []
       for animation in @animations
         animation.update()
-#        running_animations.push(animation) unless animation.complete
         @pending_animations.push(animation) unless animation.complete
 
-  animateHexPath: (entity, path, callback) =>
-    @addAnimation(new HexPathAnimation({entity, path}))
-    console.log 'added', path
-    console.log 'animations', @animations
+  animateLinear: (entity, target, callback) =>
+    @addAnimation(new LinearAnimation({entity, target}), callback)
 
-  addAnimation: (animation) => @pending_animations.push(animation)
+  animateHexPath: (entity, path, callback) =>
+    @addAnimation(new HexPathAnimation({entity, path, callback}))
+
+  addAnimation: (animation, callback) =>
+    if callback
+      animation.on 'complete', (info) =>
+        callback(null, info)
+        @onAnimationComplete(animation)
+    @pending_animations.push(animation)
+    animation.entity.animations.add(animation)
+
+  onAnimationComplete: (animation) =>
+    entity = animation.entity
+    entity.animations.remove(animation)
+    if entity.animations.length is 0
+      entity.emit 'animations_complete'

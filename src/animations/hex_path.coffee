@@ -1,8 +1,6 @@
 _ = require 'lodash'
 Animation = require './animation'
-tweene = require 'tween'
-
-HIT_THRESHOLD = 0.01
+AnimationUtils = require '../lib/animation_utils'
 
 module.exports = class HexPathAnimation extends Animation
 
@@ -16,31 +14,13 @@ module.exports = class HexPathAnimation extends Animation
   update: =>
     @_endOrNext()
     return if @complete
-    @_updatePosition(@entity, @target)
+    AnimationUtils.updatePosition(@entity, @target, @speed)
 
   _endOrNext: =>
-    if not @complete and not @target or @_reachedTarget()
+    if not @complete and not @target or AnimationUtils.reachedTarget(@entity, @target)
       if target = @path.pop()
         from = @target
-        @target = @_toTarget(target)
-        @engine.emit('enter_tile', @entity, @target.hex_position, {from: from?.hex_position})
+        @target = AnimationUtils.toTarget(@engine, target)
+        @emit('complete', @)# @entity, @target.hex_position, {from: @entity.hex_position})
       else
         @complete = true
-
-  _reachedTarget: =>
-    Math.abs(@entity.position.x - @target.position.x) < HIT_THRESHOLD and Math.abs(@entity.position.y - @target.position.y) < HIT_THRESHOLD
-
-  _updatePosition: (entity, target) =>
-    dx = (target.position.x - entity.position.x) * @speed
-    dy = (target.position.y - entity.position.y) * @speed
-    entity.position.x += dx
-    entity.position.y += dy
-
-  _toTarget: (hex_position) =>
-    # TODO: see if more robustness needed
-    return hex_position if hex_position.position
-    pixel_coords = @engine.getSystem('hex_grid').coordsToPixel(hex_position)
-    return {
-      position: pixel_coords
-      hex_position: hex_position
-    }

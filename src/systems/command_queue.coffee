@@ -16,6 +16,7 @@ module.exports = class CommandQueue extends System
 
   update: =>
     MultiplayerSystem or= @engine.getSystem('multiplayer')
+    #TODO: 1 per frame or all at once?
     if @current_command = @pop()
       MultiplayerSystem.sendCommand(@current_command) unless @current_command.options.remote
       @current_command.execute()

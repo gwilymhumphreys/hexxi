@@ -17,5 +17,6 @@ module.exports = class Unit extends Entity
     @addComponent('selectable')
     @addComponent('pathable')
     @addComponent('team_membership')
+    @addComponent('animations')
 
   toString: => @name

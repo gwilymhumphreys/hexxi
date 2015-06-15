@@ -63,15 +63,6 @@ module.exports = class AnimationSystem extends System
     @addAnimation(new HexPathAnimation({entity, path, callback}))
 
   addAnimation: (animation, callback) =>
-    if callback
-      animation.on 'complete', (info) =>
-        callback(null, info)
-        @onAnimationComplete(animation)
     @pending_animations.push(animation)
-    animation.entity.animations.add(animation)
+    animation.entity.animations.add(animation, callback)
 
-  onAnimationComplete: (animation) =>
-    entity = animation.entity
-    entity.animations.remove(animation)
-    if entity.animations.length is 0
-      entity.emit 'animations_complete'

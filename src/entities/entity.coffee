@@ -12,7 +12,14 @@ module.exports = class Entity extends EventEmitter
     @children = []
     @engine or= require '../lib/engine'
 
-  toString: => "#{@name} (#{@id})"
+  toString: =>
+    s = "#{@_name} (#{@id})\n"
+    if @position
+      s += " [x: #{@position?.x}, y: #{@position?.y}]\n"
+    if @hex_position
+      s += " [q: #{@hex_position?.q}, r: #{@hex_position?.r}]\n"
+    return s
+
   equals: (entity) => @id is entity.id
 
   addComponent: (component_name, component_path, options) =>

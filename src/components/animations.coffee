@@ -10,6 +10,15 @@ module.exports = class Animations extends Component
 
   isAnimating: => @animations.length > 0
 
-  add: (animation) => @animations.push(animation)
+  add: (animation, callback) =>
+    @animations.push(animation)
+    if callback
+      animation.once 'complete', => @onAnimationComplete(animation, callback)
+
+  onAnimationComplete: (animation, callback) =>
+    @remove(animation)
+    callback()
+    if @animations.length is 0
+      @entity.emit 'animations_complete'
 
   remove: (animation) => @animations = _.without(@animations, animation)

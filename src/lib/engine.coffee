@@ -59,6 +59,7 @@ BUILTIN_PATHS =
     input: require '../systems/input'
     multiplayer: require '../systems/multiplayer'
     pathing: require '../systems/pathing'
+    relations: require '../systems/relations'
     renderer: require '../systems/renderer'
     selectables: require '../systems/selectables'
     system: require '../systems/system'

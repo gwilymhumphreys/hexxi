@@ -12,7 +12,7 @@ module.exports = class GridTile extends Entity
     @hover_texture = 'assets/tiles/tileMagic_full.png'
     @addComponent('hex_position')
     @addComponent('view', 'sprite', {z_index: -100, texture: 'assets/tiles/tileDirt.png'})
-    @addComponent('sub_view', 'text')
+#    @addComponent('sub_view', 'text')
     @addComponent('position')
     @addComponent('relations')
 #    @addComponent('hover_effects', {outline: {colour: 0xffffff}})
@@ -21,7 +21,3 @@ module.exports = class GridTile extends Entity
     @addComponent('tile')
 #    @addComponent('clickable')
 #    @addComponent('selectable')
-
-  toString: =>
-    s = "#{@name} [q: #{@q}, r: #{@r}] (#{@id})"
-    return s

@@ -23,16 +23,22 @@ module.exports = class Renderer extends System
     super
     entity.off 'parent/changed', @onParentChanged
 
-  onParentChanged: (entity) => @setStage(entity)
+  onParentChanged: (entity) =>
+    @setStage(entity)
 
   update: =>
     for entity in @engine.entitiesByComponent('view')
       entity.view.update?()
+      entity.sub_view?.update?()
       entity.view.display_object.position.x = entity.position.x + (entity.view.offset?.x or 0)
       entity.view.display_object.position.y = entity.position.y + (entity.view.offset?.y or 0)
     @renderer.render(@stage)
 
-  createDisplayObject: (entity) => entity.view.createDisplayObject()
+  createDisplayObject: (entity) =>
+    dobj = entity.view.createDisplayObject()
+    if entity.sub_view
+      sub_dobj = entity.sub_view.createDisplayObject()
+      dobj.addChild(sub_dobj)
 
   setStage: (entity) =>
     removed = @removeFromStage(entity)

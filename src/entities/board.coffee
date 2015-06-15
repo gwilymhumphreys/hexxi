@@ -10,5 +10,3 @@ module.exports = class Board extends Entity
     @addComponent('view')
     @addComponent('relations')
     window.board = @
-
-  toString: -> ['Board: ', @x, @y]

@@ -6,10 +6,3 @@ module.exports = class Team extends Entity
   constructor: ->
     super
     @addComponent('team')
-
-  toString: =>
-    s = "q: #{@q}"
-#    s += ", x: #{@x.toFixed(2)}"
-    s += "\nr: #{@r}"
-#    s += ", y: #{@y}"
-    return s

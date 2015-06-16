@@ -17,6 +17,7 @@ module.exports = class TextView extends View
     @display_object.anchor.y = @text_anchor.y
     @display_object.position.x = @text_position.x
     @display_object.position.y = @text_position.y
+    @entity.emit('view/display_object_created')
     return @display_object
 
   update: => @display_object?.setText(@entity.toString())

@@ -1,16 +1,16 @@
 _ = require 'lodash'
 EventEmitter = require './event_emitter'
-StateManager = require '../state/state_manager'
+StateManager = require '../states/state_manager'
 Entity = require '../entities/entity'
 
 globals = window or global
 
 BUILTIN_PATHS =
 
-  actions:
-    action: require '../actions/action'
-    direct_move: require '../actions/direct_move'
-    move: require '../actions/move'
+  animations:
+    animation: require '../animations/animation'
+    hex_path: require '../animations/hex_path'
+    linear: require '../animations/linear'
 
   entities:
     board: require '../entities/board'
@@ -85,10 +85,13 @@ class Engine extends EventEmitter
     @components_by_name = {}
     @systems_by_name = {}
     @appendPaths(BUILTIN_PATHS)
+    @state = new StateManager()
 
   configure: (options={}) =>
     @options = _.defaults(options, DEFAULT_OPTIONS)
 
+    if @options.states
+      @state.configure(@options.states)
     if @options.paths
       @appendPaths(@options.paths)
 
@@ -98,7 +101,6 @@ class Engine extends EventEmitter
     @init()
 
   init: =>
-    @state = new StateManager(@options.states)
     for system in @systems
       system.init(@)
     @update()
@@ -185,10 +187,15 @@ class Engine extends EventEmitter
     window.requestAnimationFrame(@update)
     return if @paused
 
+    @state.preUpdate()
     for system in @systems when system.preUpdate
       system.preUpdate()
 
     for system in @systems
       system.update()
+
+  reset: =>
+    for entity in @entities
+      entity.destroy()
 
 module.exports = new Engine()

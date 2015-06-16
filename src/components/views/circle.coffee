@@ -9,4 +9,5 @@ module.exports = class Circle extends Component
     @display_object.beginFill(0xFFFF00)
     @display_object.lineStyle(5, 0xFF0000)
     @display_object.drawCircle(100, 100, 5)
+    @entity.emit('view/display_object_created')
     return @display_object

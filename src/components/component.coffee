@@ -11,3 +11,5 @@ module.exports = class Component
     for component in components
       unless @entity.hasComponent(component)
         throw new Error("Missing component #{component} from entity: #{@entity._name}")
+
+  destroy: =>

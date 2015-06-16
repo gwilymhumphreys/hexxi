@@ -2,7 +2,15 @@ _ = require 'lodash'
 
 module.exports = class StateManager
   constructor: (options) ->
-    @states = _.clone(options.states)
+    @states = {}
+    @configure(options) if options
+
+  configure: (options) =>
+    if options?.states
+      for state_name, state of options.states
+        @add(state_name, state)
+
+  add: (state_name, state) => @states[state_name] = state
 
   start: (state_name) =>
     if @current_state_name is state_name
@@ -14,13 +22,13 @@ module.exports = class StateManager
 
   preUpdate: =>
     return unless @_pending_state_name
-    @current_state.shutdown()
-    @setCurrentState(@_pending_state_name)
+    @current_state?.shutdown()
+    @_setCurrentState(@_pending_state_name)
 
-  setCurrentState: (state_name) =>
+  _setCurrentState: (state_name) =>
     @current_state_name = state_name
     @_pending_state_name = null
-    @current_state = @states[state_name]
+    @current_state = new @states[state_name]()
     @current_state.init()
     @current_state.preload()
     @current_state.create()

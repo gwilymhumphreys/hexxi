@@ -3,10 +3,10 @@ _ = require 'lodash'
 module.exports =
   Engine: require './lib/engine'
 
-  Action: require './actions/action'
-  actions:
-    Move: require './actions/move'
-    DirectMove: require './actions/direct_move'
+  Animation: require './animations/animation'
+  animations:
+    HexPath: require './animations/hex_path'
+    Linear: require './animations/linear'
 
   Entity: require './entities/entity'
   entities:

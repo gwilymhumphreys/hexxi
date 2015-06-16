@@ -20,6 +20,11 @@ module.exports = class Entity extends EventEmitter
       s += " [q: #{@hex_position?.q}, r: #{@hex_position?.r}]\n"
     return s
 
+  destroy: =>
+    @removeAllListeners()
+    for name, component of @components
+      component.destroy()
+
   equals: (entity) => @id is entity.id
 
   addComponent: (component_name, component_path, options) =>

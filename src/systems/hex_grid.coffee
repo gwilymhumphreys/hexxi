@@ -25,28 +25,6 @@ module.exports = class HexGrid extends System
     @board.position.x += Math.floor(@rows/2) * @tile_width
     @board.position.y += 3/4 * Math.floor(@columns/2) * @tile_height
 
-  createGrid: =>
-    @engine.addEntity(@board)
-    @tiles = @createTiles()
-    @engine.addEntity(tile) for tile in @tiles
-
-  createTiles:  =>
-    tiles = []
-    for r in [Math.floor(-@columns/2)+1..Math.floor(@columns/2)]
-      from = Math.floor(-@rows/2) + 1 - Math.ceil(r/2)
-      to = Math.floor(@rows/2) - Math.ceil(r/2)
-      from +=1 if @symmetrical and r % 2 isnt 0
-      for q in [from..to]
-        tile = new @tile_entity({hex_position: {q: q, r: r, traversable: true}, relations: {parent: @board}})
-        tiles.push(tile)
-    return tiles
-
-  init: =>
-    super
-    @createGrid(@options)
-    document.addEventListener 'mousemove', @onMousemove
-    @engine.on 'click', @onClick
-
   onEntityCreated: (entity) =>
     if entity.hasComponent('hex_grid')
       @board = entity
@@ -67,11 +45,33 @@ module.exports = class HexGrid extends System
     for entity in @entitiesAtCoords(coords)
       entity.emit 'click', entity, event
 
+  init: =>
+    super
+    document.addEventListener 'mousemove', @onMousemove
+    @engine.on 'click', @onClick
+
   update: =>
     for entity in @engine.entitiesByComponent('hex_position')
       if entity.hex_position.has_moved
         @setScreenCoords(entity)
         entity.hex_position.has_moved = false
+
+  createGrid: =>
+    @engine.addEntity(@board)
+    @tiles = @createTiles()
+    @engine.addEntity(tile) for tile in @tiles
+    return @board
+
+  createTiles:  =>
+    tiles = []
+    for r in [Math.floor(-@columns/2)+1..Math.floor(@columns/2)]
+      from = Math.floor(-@rows/2) + 1 - Math.ceil(r/2)
+      to = Math.floor(@rows/2) - Math.ceil(r/2)
+      from +=1 if @symmetrical and r % 2 isnt 0
+      for q in [from..to]
+        tile = new @tile_entity({hex_position: {q: q, r: r, traversable: true}, relations: {parent: @board}})
+        tiles.push(tile)
+    return tiles
 
   setScreenCoords: (entity) =>
     screen_coords = @coordsToPixel(entity.hex_position)

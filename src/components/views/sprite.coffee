@@ -1,6 +1,6 @@
 _ = require 'lodash'
 View = require './view'
-PIXI = require 'pixi'
+PIXI = require 'pixi.js'
 
 module.exports = class Sprite extends View
   _name: 'sprite'

@@ -1,4 +1,4 @@
-PIXI = require 'pixi'
+PIXI = require 'pixi.js'
 
 DEFAULTS =
   OUTLINE_COLOUR: '#ffff55'

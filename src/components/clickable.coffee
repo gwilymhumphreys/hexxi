@@ -13,7 +13,7 @@ module.exports = class Clickable extends Component
 
   onDisplayObjectCreated: =>
     @selected = false
-    @entity.view.display_object.setInteractive(true)
+    @entity.view.display_object.interactive = true
     @entity.view.display_object.click = @onClick
 
   onClick: (event) =>

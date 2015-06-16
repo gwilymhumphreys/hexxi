@@ -42,6 +42,7 @@
     "inflection": "1.2.x",
     "lodash": "^3.9.3",
     "moment": "2.0.x",
+    "pixi.js": "^3.0.6",
     "queue-async": "^1.0.7",
     "tween.js": "^0.14.0",
     "underscore": "1.5.x"

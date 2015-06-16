@@ -1,4 +1,4 @@
-PIXI = require 'pixi'
+PIXI = require 'pixi.js'
 Component = require '../component'
 
 module.exports = class View extends Component

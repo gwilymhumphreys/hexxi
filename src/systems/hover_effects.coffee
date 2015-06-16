@@ -1,4 +1,4 @@
-PIXI = require 'pixi'
+PIXI = require 'pixi.js'
 System = require './system'
 EffectUtils = require '../lib/effect_utils'
 

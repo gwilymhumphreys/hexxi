@@ -1,5 +1,5 @@
 Component = require './../component'
-PIXI = require 'pixi'
+PIXI = require 'pixi.js'
 
 module.exports = class Circle extends Component
   _name: 'circle'

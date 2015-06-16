@@ -1,6 +1,6 @@
 _ = require 'lodash'
 View = require './view'
-PIXI = require 'pixi'
+PIXI = require 'pixi.js'
 
 module.exports = class TextView extends View
   _name: 'text'

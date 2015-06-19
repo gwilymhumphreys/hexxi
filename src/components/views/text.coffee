@@ -20,4 +20,5 @@ module.exports = class TextView extends View
     @entity.emit('view/display_object_created')
     return @display_object
 
-  update: => @display_object?.setText(@entity.toString())
+  update: => @display_object?.text = @entity.toString()
+

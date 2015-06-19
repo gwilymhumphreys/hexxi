@@ -1,5 +1,4 @@
 _ = require 'lodash'
-Queue = require 'queue-async'
 Component = require './component'
 HexUtils = require '../lib/hex_utils'
 
@@ -16,19 +15,19 @@ module.exports = class HexPosition extends Component
     from_position or= @toJSON()
     @set(position)
     @engine.emit('enter_tile', {@entity, position, from_position})
-
-  linearMove: (to_position, callback) =>
-    @engine.getSystem('animations').animateLinear @entity, to_position, (err) => callback(err, @setAndEmit(to_position))
-
-  hexPathMove: (path, callback) =>
-    path = [path] unless _.isArray(path)
-    callback or= ->
-    queue = new Queue(1)
-    for pos in path.reverse()
-      do (pos) => queue.defer (callback) =>
-        return callback() if @equals(pos)
-        @linearMove pos, callback
-    queue.await callback
+#
+#  linearMove: (to_position, callback) =>
+#    @engine.getSystem('animations').animateLinear @entity, to_position, (err) => callback(err, @setAndEmit(to_position))
+#
+#  hexPathMove: (path, callback) =>
+#    path = [path] unless _.isArray(path)
+#    callback or= ->
+#    queue = new Queue(1)
+#    for pos in path.reverse()
+#      do (pos) => queue.defer (callback) =>
+#        return callback() if @equals(pos)
+#        @linearMove pos, callback
+#    queue.await callback
 
 #    @engine.getSystem('animations').animateHexPath @entity, path
 #    path = [path] unless _.isArray(path)

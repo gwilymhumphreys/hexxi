@@ -8,6 +8,8 @@ module.exports = class Relations extends Component
     @children = []
     if @parent
       @setParent(@parent)
+    else
+      @parent = null
 
   setParent: (parent) =>
     return console.trace "RelationsComponent: Attempting to set an entity's parent to itself", @entity if @entity.equals(parent)
@@ -26,3 +28,4 @@ module.exports = class Relations extends Component
   revertParent: => @setParent(@previous_parent)
   addChild: (child) => child.setParent(@entity)
   removeChild: (child) => child.setParent(null)
+  toJSON: => {@parent, @previous_parent, children: (e.id for e in @children)}

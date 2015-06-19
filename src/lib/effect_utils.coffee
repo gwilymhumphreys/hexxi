@@ -24,10 +24,10 @@ module.exports = class EffectUtils
       entity.view.display_object.addChild(component.display_object)
     else if component.texture
       component.previous_texture = entity.view.display_object.texture
-      entity.view.display_object.setTexture(PIXI.Texture.fromImage(component.texture))
+      entity.view.display_object.texture = PIXI.Texture.fromImage(component.texture)
 
   @deactivate: (entity, component) =>
     if component.outline
       entity.view.display_object.removeChild(component.display_object)
     else if component.texture
-      entity.view.display_object.setTexture(component.previous_texture)
+      entity.view.display_object.texture = component.previous_texture

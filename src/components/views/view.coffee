@@ -5,7 +5,7 @@ module.exports = class View extends Component
   _name: 'view'
 
   createDisplayObject: ->
-    @display_object = new PIXI.DisplayObjectContainer()
+    @display_object = new PIXI.Container()
     @entity.emit('view/display_object_created')
     return @display_object
 
@@ -19,9 +19,3 @@ module.exports = class View extends Component
 
   destroy: =>
     @engine.getSystem('renderer').removeFromStage(@entity)
-
-#  set: (key, value) ->
-#    @[key] = value
-#    return unless @display_object
-#    @display_object[key] = value
-#    console.log key, value, @

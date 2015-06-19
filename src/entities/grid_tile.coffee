@@ -11,7 +11,7 @@ module.exports = class GridTile extends Entity
     @selected_texture = 'assets/tiles/tileWater_full.png'
     @hover_texture = 'assets/tiles/tileMagic_full.png'
     @addComponent('hex_position')
-    @addComponent('view', 'sprite', {z_index: -100, texture: 'assets/tiles/tileDirt.png'})
+    @addComponent('view', 'sprite', {z_index: -100, texture: 'assets/tiles/tileGrass.png'})
 #    @addComponent('sub_view', 'text')
     @addComponent('position')
     @addComponent('relations')

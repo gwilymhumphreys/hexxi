@@ -1,4 +1,5 @@
 _ = require 'lodash'
+Queue = require 'queue-async'
 System = require './system'
 HexUtils = require '../lib/hex_utils'
 Board = require '../entities/board'
@@ -20,11 +21,7 @@ module.exports = class HexGrid extends System
     @tile_height ?= HexUtils.heightFromSize(@tile_size)
     @tile_width ?= HexUtils.widthFromSize(@tile_size)
 
-    unless @engine.isEntity(@board)
-      @board = new Board(_.defaults(@board or {}, {position: {x: 10, y: 10}}))
-    @board.position.x += Math.floor(@rows/2) * @tile_width
-    @board.position.y += 3/4 * Math.floor(@columns/2) * @tile_height
-
+  # Event handlers
   onEntityCreated: (entity) =>
     if entity.hasComponent('hex_grid')
       @board = entity
@@ -45,21 +42,26 @@ module.exports = class HexGrid extends System
     for entity in @entitiesAtCoords(coords)
       entity.emit 'click', entity, event
 
-  init: =>
-    super
-    document.addEventListener 'mousemove', @onMousemove
-    @engine.on 'click', @onClick
-
   update: =>
     for entity in @engine.entitiesByComponent('hex_position')
       if entity.hex_position.has_moved
         @setScreenCoords(entity)
         entity.hex_position.has_moved = false
 
+  # Init functions
+#  init: =>
+#    super
+
   createGrid: =>
+    unless @engine.isEntity(@board)
+      @board = new Board(_.defaults(@board or {}, {position: {x: 10, y: 10}}))
+      @board.position.x += Math.floor(@rows/2) * @tile_width
+      @board.position.y += 3/4 * Math.floor(@columns/2) * @tile_height
     @engine.addEntity(@board)
     @tiles = @createTiles()
     @engine.addEntity(tile) for tile in @tiles
+    document.addEventListener 'mousemove', @onMousemove
+    @engine.on 'click', @onClick
     return @board
 
   createTiles:  =>
@@ -73,6 +75,21 @@ module.exports = class HexGrid extends System
         tiles.push(tile)
     return tiles
 
+  # Movement - may split this into another system
+  linearMove: (entity, to_position, callback) =>
+    @engine.getSystem('animations').animateLinear entity, to_position, (err) => callback(err, entity.hex_position.setAndEmit(to_position))
+
+  hexPathMove: (entity, path, callback) =>
+    path = [path] unless _.isArray(path)
+    callback or= ->
+    queue = new Queue(1)
+    for pos in path.reverse()
+      do (pos) => queue.defer (callback) =>
+        return callback() if entity.hex_position.equals(pos)
+        @linearMove entity, pos, callback
+    queue.await callback
+
+  # Helpers
   setScreenCoords: (entity) =>
     screen_coords = @coordsToPixel(entity.hex_position)
     _.extend(entity.position, screen_coords)

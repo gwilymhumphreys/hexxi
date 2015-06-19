@@ -6,7 +6,7 @@ module.exports = class Renderer extends System
 
   constructor: ->
     super
-    @stage = new PIXI.Stage(0x66FF99)
+    @stage = new PIXI.Container(0x66FF99)
     @renderer = PIXI.autoDetectRenderer(800, 600)
     @view = @renderer.view
     document.body.appendChild(@view)
@@ -64,4 +64,4 @@ module.exports = class Renderer extends System
   setTexture: (entity, texture) =>
     entity.view.texture = texture
     entity.view.pixi_texture = PIXI.Texture.fromImage(texture)
-    entity.view.display_object.setTexture(entity.view.pixi_texture)
+    entity.view.display_object.texture = entity.view.pixi_texture

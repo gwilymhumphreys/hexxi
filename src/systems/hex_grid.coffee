@@ -16,6 +16,7 @@ module.exports = class HexGrid extends System
       tile_size: 36
       rows: 8
       columns: 8
+      z_index: -1000
     })
     (@[key] = value) for key, value of @options
     @tile_height ?= HexUtils.heightFromSize(@tile_size)
@@ -52,7 +53,7 @@ module.exports = class HexGrid extends System
 #  init: =>
 #    super
 
-  createGrid: =>
+  createBoard: =>
     unless @engine.isEntity(@board)
       @board = new Board(_.defaults(@board or {}, {position: {x: 10, y: 10}}))
       @board.position.x += Math.floor(@rows/2) * @tile_width
@@ -62,17 +63,20 @@ module.exports = class HexGrid extends System
     @engine.addEntity(tile) for tile in @tiles
     document.addEventListener 'mousemove', @onMousemove
     @engine.on 'click', @onClick
+    @engine.emit 'hex_grid/board_created', @board
     return @board
 
   createTiles:  =>
     tiles = []
+    layer = @z_index
     for r in [Math.floor(-@columns/2)+1..Math.floor(@columns/2)]
       from = Math.floor(-@rows/2) + 1 - Math.ceil(r/2)
       to = Math.floor(@rows/2) - Math.ceil(r/2)
       from +=1 if @symmetrical and r % 2 isnt 0
       for q in [from..to]
-        tile = new @tile_entity({hex_position: {q: q, r: r, traversable: true}, relations: {parent: @board}})
+        tile = new @tile_entity({hex_position: {q: q, r: r, traversable: true}, relations: {parent: @board}, view: {z_index: layer}})
         tiles.push(tile)
+      layer++
     return tiles
 
   # Movement - may split this into another system

@@ -2,7 +2,7 @@ _ = require 'lodash'
 System = require './system'
 
 module.exports = class Relations extends System
-  _name: 'ball'
+  _name: 'relations'
 
   init: =>
     super

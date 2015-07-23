@@ -3,7 +3,7 @@ _ = require 'lodash'
 module.exports = class Command
 
   constructor: (@data, @options={}) ->
-    @engine = @options.engine or require '../lib/engine'
+    @engine = @options.engine or require '../engine'
     @set(@data)
 
   set: (data) =>

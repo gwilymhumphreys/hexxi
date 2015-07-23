@@ -4,7 +4,7 @@ module.exports = class Component
 
   constructor: (@entity, options) ->
     _.extend(@, options)
-    @engine or= require '../lib/engine'
+    @engine or= require '../engine'
 
   requires: (components) =>
     components = [components] unless _.isArray(components)

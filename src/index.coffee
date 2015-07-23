@@ -1,7 +1,7 @@
 _ = require 'lodash'
 
 module.exports =
-  Engine: require './lib/engine'
+  Engine: require './engine'
 
   Animation: require './animations/animation'
   animations:

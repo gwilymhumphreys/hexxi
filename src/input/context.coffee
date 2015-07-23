@@ -6,7 +6,7 @@ module.exports = class Context
     _.extend(@, options)
     @entities = []
     @sub_contexts = []
-    @engine or= require '../lib/engine'
+    @engine or= require '../engine'
     @engine.on 'entity/created', @onEntityCreated
     @engine.on 'entity/destroyed', @onEntityDestroyed
 

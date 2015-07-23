@@ -10,7 +10,7 @@ module.exports = class Entity extends EventEmitter
     @id = options.id or ++entity_count
     @components = {}
     @children = []
-    @engine or= require '../lib/engine'
+    @engine or= require '../engine'
 
   toString: =>
     s = "#{@_name} (#{@id})\n"
@@ -25,7 +25,7 @@ module.exports = class Entity extends EventEmitter
     for name, component of @components
       component.destroy()
 
-  equals: (entity) => @id is entity.id
+  equals: (entity) => @id is entity?.id
 
   addComponent: (component_name, component_path, options) =>
 

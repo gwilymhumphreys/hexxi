@@ -5,14 +5,11 @@ module.exports = class GridTile extends Entity
 
   constructor: ->
     super
-    @text_anchor = {x: 0, y: 0}
-    @text_position = {x: 0, y: 0}
-    @text_format = {font: 'regular 8px Arial', fill: '#ffffff'}
     @selected_texture = 'assets/tiles/tileWater_full.png'
     @hover_texture = 'assets/tiles/tileMagic_full.png'
     @addComponent('hex_position')
-    @addComponent('view', 'sprite', {z_index: -100, texture: 'assets/tiles/tileGrass.png'})
-#    @addComponent('sub_view', 'text')
+    @addComponent('view', 'sprite', {texture: 'assets/tiles/tileGrass.png'})
+    @addComponent('sub_view', 'text', {text_position: {x: 40, y: 20}})
     @addComponent('position')
     @addComponent('relations')
 #    @addComponent('hover_effects', {outline: {colour: 0xffffff}})
@@ -21,3 +18,5 @@ module.exports = class GridTile extends Entity
     @addComponent('tile')
 #    @addComponent('clickable')
 #    @addComponent('selectable')
+
+  toString: => "#{@hex_position.q} #{@hex_position.r}"

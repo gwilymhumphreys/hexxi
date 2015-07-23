@@ -21,4 +21,3 @@ module.exports = class TextView extends View
     return @display_object
 
   update: => @display_object?.text = @entity.toString()
-

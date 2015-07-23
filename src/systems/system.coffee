@@ -4,7 +4,7 @@ module.exports = class System
 
   constructor: (@options={}) ->
     (@[key] = value) for key, value of @options
-    @engine or= require '../lib/engine'
+    @engine or= require '../engine'
 
   init: =>
     @entities = []

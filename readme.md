@@ -1,24 +1,37 @@
-# Hexxi v0.0.5
+# Hexxi v0.1.0
 A HTML5 engine for creating hex based games
 
 ##Getting started
-1. [Download Hexxi](https://raw.githubusercontent.com/gwilymhumphreys/hexxi/master/build/hexxi.js) and include it
-```
-<script src="hexxi.js">
-```
-2. Require Hexxi
-```
-Hexxi = require('hexxi')
-```
-3. Configure Hexxi
-```
-Hexxi.configure({ /* see `Configuration` below */ })
-```
-4. Start Hexxi
-```
-Engine = Hexxi.Engine
-Engine.start()
-```
+1.  Install via npm
+
+    ```
+    npm install hexxi
+    ```
+
+    or the oldschool way: [Download Hexxi](https://raw.githubusercontent.com/gwilymhumphreys/hexxi/master/build/hexxi.js) and include it
+
+    ```
+    <script src="hexxi.js">
+    ```
+
+2.  Require Hexxi
+
+    ```
+    Hexxi = require('hexxi')
+    ```
+
+3.  Configure Hexxi
+
+    ```
+    Hexxi.configure({ /* see `Configuration` below */ })
+    ```
+
+4.  Start Hexxi
+
+    ```
+    Engine = Hexxi.Engine
+    Engine.start()
+    ```
 
 ##Configuration
 

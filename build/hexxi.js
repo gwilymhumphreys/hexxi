@@ -90,118 +90,543 @@
   globals.require.list = list;
   globals.require.brunch = true;
 })();
-require.register('src/index', function(exports, require, module) {
-module.exports = require('./../engine/engine');
-
-});
-require.register('src/actions/action', function(exports, require, module) {
-var Action, _;
-
-_ = require('underscore');
-
-module.exports = Action = (function() {
-  function Action(options) {
-    _.extend(this, options);
-  }
-
-  Action.prototype.update = function() {};
-
-  return Action;
-
-})();
-
-});
-require.register('src/actions/move', function(exports, require, module) {
-var Action, Engine, HIT_THRESHOLD, Move, tweene, _,
+require.register('src/engine', function(exports, require, module) {
+var BUILTIN_PATHS, DEFAULT_OPTIONS, Engine, Entity, EventEmitter, MODULE_CATEGORIES, StateManager, globals, _,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-_ = require('underscore');
+_ = require('lodash');
 
-Action = require('./action');
+EventEmitter = require('./lib/event_emitter');
 
-Engine = require('../engine/engine');
+StateManager = require('./states/state_manager');
 
-tweene = require('tween');
+Entity = require('./entities/entity');
 
-HIT_THRESHOLD = 0.01;
+globals = window || global;
 
-module.exports = Move = (function(_super) {
-  __extends(Move, _super);
+BUILTIN_PATHS = {
+  animations: {
+    animation: require('./animations/animation'),
+    hex_path: require('./animations/hex_path'),
+    linear: require('./animations/linear')
+  },
+  entities: {
+    board: require('./entities/board'),
+    entity: require('./entities/entity'),
+    grid_tile: require('./entities/grid_tile'),
+    team: require('./entities/team'),
+    unit: require('./entities/unit'),
+    user: require('./entities/user')
+  },
+  input: {
+    context: require('./input/context'),
+    select: require('./input/select'),
+    selected: require('./input/selected')
+  },
+  commands: {
+    move: require('./commands/move')
+  },
+  components: {
+    animations: require('./components/animations'),
+    clickable: require('./components/clickable'),
+    component: require('./components/component'),
+    hex_grid: require('./components/hex_grid'),
+    hex_position: require('./components/hex_position'),
+    highlight: require('./components/highlight'),
+    hover_effects: require('./components/hover_effects'),
+    pathable: require('./components/pathable'),
+    position: require('./components/position'),
+    relations: require('./components/relations'),
+    selectable: require('./components/selectable'),
+    team: require('./components/team'),
+    team_membership: require('./components/team_membership'),
+    tile: require('./components/tile'),
+    user: require('./components/user'),
+    circle: require('./components/views/circle'),
+    sprite: require('./components/views/sprite'),
+    text: require('./components/views/text'),
+    view: require('./components/views/view')
+  },
+  systems: {
+    animations: require('./systems/animations'),
+    command_queue: require('./systems/command_queue'),
+    hex_grid: require('./systems/hex_grid'),
+    highlights: require('./systems/highlights'),
+    hover_effects: require('./systems/hover_effects'),
+    input: require('./systems/input'),
+    multiplayer: require('./systems/multiplayer'),
+    pathing: require('./systems/pathing'),
+    relations: require('./systems/relations'),
+    renderer: require('./systems/renderer'),
+    selectables: require('./systems/selectables'),
+    system: require('./systems/system'),
+    teams: require('./systems/teams'),
+    users: require('./systems/users')
+  }
+};
 
-  function Move() {
-    this._toTarget = __bind(this._toTarget, this);
-    this._updatePosition = __bind(this._updatePosition, this);
-    this._reachedTarget = __bind(this._reachedTarget, this);
-    this._endOrNext = __bind(this._endOrNext, this);
+MODULE_CATEGORIES = _.keys(BUILTIN_PATHS);
+
+DEFAULT_OPTIONS = {
+  states: {}
+};
+
+Engine = (function(_super) {
+  __extends(Engine, _super);
+
+  function Engine() {
+    this.reset = __bind(this.reset, this);
     this.update = __bind(this.update, this);
-    Move.__super__.constructor.apply(this, arguments);
-    if (!this.entity) {
-      throw new Error('Move action missing entity');
-    }
-    if (!this.path) {
-      throw new Error('Move action missing path');
-    }
+    this.stop = __bind(this.stop, this);
+    this.start = __bind(this.start, this);
+    this.removeEntity = __bind(this.removeEntity, this);
+    this.addEntity = __bind(this.addEntity, this);
+    this.ensureEntity = __bind(this.ensureEntity, this);
+    this.getInputContext = __bind(this.getInputContext, this);
+    this.getComponent = __bind(this.getComponent, this);
+    this.getCommand = __bind(this.getCommand, this);
+    this.getSystem = __bind(this.getSystem, this);
+    this.addSystem = __bind(this.addSystem, this);
+    this.initSystem = __bind(this.initSystem, this);
+    this.activeComponents = __bind(this.activeComponents, this);
+    this.entitiesByComponent = __bind(this.entitiesByComponent, this);
+    this.entityById = __bind(this.entityById, this);
+    this.appendPaths = __bind(this.appendPaths, this);
+    this.loadModules = __bind(this.loadModules, this);
+    this.createSystems = __bind(this.createSystems, this);
+    this.onClick = __bind(this.onClick, this);
+    this.onRightClick = __bind(this.onRightClick, this);
+    this.bindEvents = __bind(this.bindEvents, this);
+    this.init = __bind(this.init, this);
+    this.configure = __bind(this.configure, this);
+    Engine.__super__.constructor.apply(this, arguments);
+    window.Engine = this;
+    this.started = true;
+    this.paused = true;
+    this.modules = {};
+    this.entities = [];
+    this.systems = [];
+    this.commands_by_name = {};
+    this.components_by_name = {};
+    this.systems_by_name = {};
+    this.appendPaths(BUILTIN_PATHS);
+    this.state = new StateManager();
   }
 
-  Move.prototype.update = function() {
+  Engine.prototype.configure = function(options) {
+    if (options == null) {
+      options = {};
+    }
+    this.options = _.defaults(options, DEFAULT_OPTIONS);
+    if (this.options.states) {
+      this.state.configure(this.options.states);
+    }
+    if (this.options.paths) {
+      this.appendPaths(this.options.paths);
+    }
+    this.loadModules();
+    this.createSystems();
+    return this.init();
+  };
+
+  Engine.prototype.init = function() {
+    var system, _i, _len, _ref;
+    _ref = this.systems;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      system = _ref[_i];
+      system.init(this);
+    }
+    this.update();
+    return this.bindEvents();
+  };
+
+  Engine.prototype.bindEvents = function() {
+    this.element = this.getSystem('renderer').view;
+    this.element.addEventListener('click', this.onClick, false);
+    return this.element.addEventListener('contextmenu', this.onRightClick, false);
+  };
+
+  Engine.prototype.onRightClick = function(event) {
+    event.preventDefault();
+    return this.emit('rightclick', event);
+  };
+
+  Engine.prototype.onClick = function(event) {
+    if (event.which !== 1) {
+      return;
+    }
+    event.preventDefault();
+    return this.emit('click', event);
+  };
+
+  Engine.prototype.createSystems = function() {
+    var System, _i, _len, _ref, _results;
+    _ref = this.modules.systems;
+    _results = [];
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      System = _ref[_i];
+      _results.push(this.addSystem(new System(this.options.systems[System._name])));
+    }
+    return _results;
+  };
+
+  Engine.prototype.loadModules = function() {
+    var Command, Component, category, duplicate, module, name, path, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2, _results;
+    for (_i = 0, _len = MODULE_CATEGORIES.length; _i < _len; _i++) {
+      category = MODULE_CATEGORIES[_i];
+      this.modules[category] = [];
+      _ref = this.paths[category];
+      for (name in _ref) {
+        path = _ref[name];
+        if (_.isString(path)) {
+          module = require(path);
+        } else {
+          module = path;
+        }
+        if (module.prototype._name && (duplicate = _.find(this.modules[category], function(m) {
+          return m.prototype._name === module.prototype._name;
+        }))) {
+          console.log("Hexxi.Engine warning: A " + category + " module with the name " + module.prototype._name + " already exists:", module, duplicate);
+        }
+        this.modules[category].push(module);
+      }
+    }
+    _ref1 = this.modules.commands;
+    for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+      Command = _ref1[_j];
+      this.commands_by_name[Command.prototype._name] = Command;
+    }
+    _ref2 = this.modules.components;
+    _results = [];
+    for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
+      Component = _ref2[_k];
+      if (Component.prototype._name) {
+        _results.push(this.components_by_name[Component.prototype._name] = Component);
+      }
+    }
+    return _results;
+  };
+
+  Engine.prototype.appendPaths = function(path_obj) {
+    var key, paths, _base;
+    this.paths || (this.paths = []);
+    for (key in path_obj) {
+      paths = path_obj[key];
+      if (!BUILTIN_PATHS[key]) {
+        return console.error("Hexxi::configure - given key is not used by Hexxi, maybe a typo?: " + key);
+      }
+      (_base = this.paths)[key] || (_base[key] = {});
+      _.extend(this.paths[key], paths);
+    }
+  };
+
+  Engine.prototype.entityById = function(id) {
+    return _.find(this.entities, function(entity) {
+      return entity.id === id;
+    });
+  };
+
+  Engine.prototype.entitiesByComponent = function(component_name) {
+    return _.filter(this.entities, function(entity) {
+      return entity.hasComponent(component_name);
+    });
+  };
+
+  Engine.prototype.activeComponents = function(component_name) {
+    var entity, _i, _len, _ref, _results;
+    _ref = this.entitiesByComponent(component_name);
+    _results = [];
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      entity = _ref[_i];
+      _results.push(entity[component_name]);
+    }
+    return _results;
+  };
+
+  Engine.prototype.initSystem = function(system) {
+    if (_.isString(system)) {
+      system = this.getSystem(system);
+    }
+    return system.init(this);
+  };
+
+  Engine.prototype.addSystem = function(system) {
+    this.systems.push(system);
+    return this.systems_by_name[system._name] = system;
+  };
+
+  Engine.prototype.getSystem = function(system_name) {
+    return this.systems_by_name[system_name];
+  };
+
+  Engine.prototype.getCommand = function(name) {
+    return this.commands_by_name[name];
+  };
+
+  Engine.prototype.getComponent = function(name) {
+    return this.components_by_name[name];
+  };
+
+  Engine.prototype.getInputContext = function(name) {
+    return _.find(this.modules.input, function(c) {
+      return c.prototype._name === name;
+    });
+  };
+
+  Engine.prototype.isEntity = function(entity) {
+    return entity instanceof Entity;
+  };
+
+  Engine.prototype.ensureEntity = function(entity) {
+    if (_.isNumber(entity)) {
+      return this.entityById(entity);
+    }
+    return entity;
+  };
+
+  Engine.prototype.addEntity = function(entity) {
+    this.entities.push(entity);
+    return this.emit('entity/created', entity);
+  };
+
+  Engine.prototype.removeEntity = function(entity) {
+    var e;
+    this.emit('entity/destroyed', entity);
+    return this.entities = (function() {
+      var _i, _len, _ref, _results;
+      _ref = this.entities;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        e = _ref[_i];
+        if (e !== entity) {
+          _results.push(e);
+        }
+      }
+      return _results;
+    }).call(this);
+  };
+
+  Engine.prototype.start = function() {
+    return this.paused = false;
+  };
+
+  Engine.prototype.stop = function() {
+    return this.paused = true;
+  };
+
+  Engine.prototype.update = function() {
+    var system, _i, _j, _len, _len1, _ref, _ref1, _results;
+    window.requestAnimationFrame(this.update);
+    if (this.paused) {
+      return;
+    }
+    this.state.preUpdate();
+    _ref = this.systems;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      system = _ref[_i];
+      if (system.preUpdate) {
+        system.preUpdate();
+      }
+    }
+    _ref1 = this.systems;
+    _results = [];
+    for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+      system = _ref1[_j];
+      _results.push(system.update());
+    }
+    return _results;
+  };
+
+  Engine.prototype.reset = function() {
+    var entity, _i, _len, _ref, _results;
+    _ref = this.entities;
+    _results = [];
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      entity = _ref[_i];
+      _results.push(entity.destroy());
+    }
+    return _results;
+  };
+
+  return Engine;
+
+})(EventEmitter);
+
+module.exports = new Engine();
+
+});
+require.register('src/index', function(exports, require, module) {
+var _;
+
+_ = require('lodash');
+
+module.exports = {
+  Engine: require('./engine'),
+  Animation: require('./animations/animation'),
+  animations: {
+    HexPath: require('./animations/hex_path'),
+    Linear: require('./animations/linear')
+  },
+  Entity: require('./entities/entity'),
+  entities: {
+    Entity: require('./entities/entity'),
+    Board: require('./entities/board'),
+    GridTile: require('./entities/grid_tile'),
+    Team: require('./entities/team'),
+    Unit: require('./entities/unit'),
+    User: require('./entities/user')
+  },
+  InputContext: require('./input/context'),
+  input: {
+    Select: require('./input/select'),
+    Selected: require('./input/selected')
+  },
+  Command: require('./commands/command'),
+  commands: {
+    Move: require('./commands/move')
+  },
+  Component: require('./components/component'),
+  System: require('./systems/system'),
+  HexUtils: require('./lib/hex_utils')
+};
+
+_.extend(module.exports, {
+  configure: module.exports.Engine.configure
+});
+
+});
+require.register('src/animations/animation', function(exports, require, module) {
+var Animation, EventEmitter, _,
+  __hasProp = {}.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+_ = require('lodash');
+
+EventEmitter = require('../lib/event_emitter');
+
+module.exports = Animation = (function(_super) {
+  __extends(Animation, _super);
+
+  function Animation(options) {
+    Animation.__super__.constructor.apply(this, arguments);
+    _.extend(this, options);
+    this.engine || (this.engine = require('../engine'));
+  }
+
+  Animation.prototype.update = function() {};
+
+  return Animation;
+
+})(EventEmitter);
+
+});
+require.register('src/animations/hex_path', function(exports, require, module) {
+var Animation, AnimationUtils, HexPathAnimation, _,
+  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+  __hasProp = {}.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+_ = require('lodash');
+
+Animation = require('./animation');
+
+AnimationUtils = require('../lib/animation_utils');
+
+module.exports = HexPathAnimation = (function(_super) {
+  __extends(HexPathAnimation, _super);
+
+  function HexPathAnimation() {
+    this._endOrNext = __bind(this._endOrNext, this);
+    this.update = __bind(this.update, this);
+    HexPathAnimation.__super__.constructor.apply(this, arguments);
+    if (!this.entity) {
+      throw new Error('HexPathAnimation missing entity');
+    }
+    if (!this.path) {
+      throw new Error('HexPathAnimation missing path');
+    }
+    if (!_.isArray(this.path)) {
+      this.path = [this.path];
+    }
+    this.speed = 0.2;
+  }
+
+  HexPathAnimation.prototype.update = function() {
     this._endOrNext();
     if (this.complete) {
       return;
     }
-    return this._updatePosition(this.entity, this.target);
+    return AnimationUtils.updatePosition(this.entity, this.target, this.speed);
   };
 
-  Move.prototype._endOrNext = function() {
-    var target;
-    if (!this.complete && !this.target || this._reachedTarget()) {
+  HexPathAnimation.prototype._endOrNext = function() {
+    var from, target;
+    if (!this.complete && !this.target || AnimationUtils.reachedTarget(this.entity, this.target)) {
       if (target = this.path.pop()) {
-        console.log('newtarget', target);
-        return this.target = this._toTarget(target);
+        from = this.target;
+        this.target = AnimationUtils.toTarget(this.engine, target);
+        return this.emit('complete', this);
       } else {
-        console.log('notarget', target);
         return this.complete = true;
       }
     }
   };
 
-  Move.prototype._reachedTarget = function() {
-    return Math.abs(this.entity.position.x - this.target.position.x) < HIT_THRESHOLD && Math.abs(this.entity.position.y - this.target.position.y) < HIT_THRESHOLD;
-  };
+  return HexPathAnimation;
 
-  Move.prototype._updatePosition = function(entity, target) {
-    var dx, dy;
-    dx = (target.position.x - entity.position.x) * 0.1;
-    dy = (target.position.y - entity.position.y) * 0.1;
-    entity.position.x += dx;
-    return entity.position.y += dy;
-  };
+})(Animation);
 
-  Move.prototype._toTarget = function(hex_position) {
-    var pixel_coords;
-    if (hex_position.position) {
-      return hex_position;
+});
+require.register('src/animations/linear', function(exports, require, module) {
+var Animation, AnimationUtils, LinearAnimation, tweene, _,
+  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+  __hasProp = {}.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+_ = require('lodash');
+
+tweene = require('tween.js');
+
+Animation = require('./animation');
+
+AnimationUtils = require('../lib/animation_utils');
+
+module.exports = LinearAnimation = (function(_super) {
+  __extends(LinearAnimation, _super);
+
+  function LinearAnimation() {
+    this.update = __bind(this.update, this);
+    LinearAnimation.__super__.constructor.apply(this, arguments);
+    if (!this.entity) {
+      throw new Error('LinearAnimation missing entity');
     }
-    pixel_coords = Engine.getSystem('hex_grid').coordsToPixel(hex_position);
-    return {
-      position: pixel_coords,
-      hex_position: hex_position
-    };
+    if (!this.target) {
+      throw new Error('LinearAnimation missing target');
+    }
+    this.target = AnimationUtils.toTarget(this.engine, this.target);
+    this.speed = 0.2;
+  }
+
+  LinearAnimation.prototype.update = function() {
+    if (this.complete = AnimationUtils.reachedTarget(this.entity, this.target)) {
+      this.emit('complete', this);
+      return;
+    }
+    return AnimationUtils.updatePosition(this.entity, this.target, this.speed);
   };
 
-  return Move;
+  return LinearAnimation;
 
-})(Action);
+})(Animation);
 
 });
 require.register('src/commands/command', function(exports, require, module) {
-var Command, Engine, _,
+var Command, _,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
-_ = require('underscore');
-
-Engine = require('../engine/engine');
+_ = require('lodash');
 
 module.exports = Command = (function() {
   function Command(data, options) {
@@ -209,17 +634,17 @@ module.exports = Command = (function() {
     this.options = options != null ? options : {};
     this.toJSON = __bind(this.toJSON, this);
     this.set = __bind(this.set, this);
+    this.engine = this.options.engine || require('../engine');
     this.set(this.data);
   }
 
   Command.prototype.set = function(data) {
     if (data.entity) {
-      data.entity = Engine.ensureEntity(data.entity);
+      data.entity = this.engine.ensureEntity(data.entity);
     }
     if (data.target) {
-      data.target = Engine.ensureEntity(data.target);
+      data.target = this.engine.ensureEntity(data.target);
     }
-    console.log('after', data);
     return _.extend(this, data);
   };
 
@@ -236,18 +661,14 @@ module.exports = Command = (function() {
 
 });
 require.register('src/commands/move', function(exports, require, module) {
-var Command, Engine, MoveAction, MoveCommand, _, _ref,
+var Command, MoveCommand, _, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-_ = require('underscore');
+_ = require('lodash');
 
 Command = require('./command');
-
-Engine = require('../engine/engine');
-
-MoveAction = require('../actions/move');
 
 module.exports = MoveCommand = (function(_super) {
   __extends(MoveCommand, _super);
@@ -262,15 +683,8 @@ module.exports = MoveCommand = (function(_super) {
   MoveCommand.prototype._name = 'move';
 
   MoveCommand.prototype.execute = function() {
-    this.move_action = new MoveAction({
-      entity: this.entity,
-      path: this.path
-    });
-    Engine.getSystem('action_queue').push(this.move_action);
-    this.goal = this.path[this.path.length - 1];
-    this.entity.hex_position.q = this.goal.q;
-    this.entity.hex_position.r = this.goal.r;
-    return console.log(this.entity);
+    this.engine.getSystem('hex_grid').hexPathMove(this.entity, this.path);
+    return this.engine.emit('command', this);
   };
 
   MoveCommand.prototype.toJSON = function() {
@@ -290,6 +704,7 @@ module.exports = MoveCommand = (function(_super) {
 });
 require.register('src/components/animations', function(exports, require, module) {
 var Animations, Component,
+  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
@@ -301,9 +716,40 @@ module.exports = Animations = (function(_super) {
   Animations.prototype._name = 'animations';
 
   function Animations() {
+    this.remove = __bind(this.remove, this);
+    this.onAnimationComplete = __bind(this.onAnimationComplete, this);
+    this.add = __bind(this.add, this);
+    this.isAnimating = __bind(this.isAnimating, this);
     Animations.__super__.constructor.apply(this, arguments);
     this.tweens || (this.tweens = {});
+    this.animations = [];
   }
+
+  Animations.prototype.isAnimating = function() {
+    return this.animations.length > 0;
+  };
+
+  Animations.prototype.add = function(animation, callback) {
+    var _this = this;
+    this.animations.push(animation);
+    if (callback) {
+      return animation.once('complete', function() {
+        return _this.onAnimationComplete(animation, callback);
+      });
+    }
+  };
+
+  Animations.prototype.onAnimationComplete = function(animation, callback) {
+    this.remove(animation);
+    callback();
+    if (this.animations.length === 0) {
+      return this.entity.emit('animations_complete');
+    }
+  };
+
+  Animations.prototype.remove = function(animation) {
+    return this.animations = _.without(this.animations, animation);
+  };
 
   return Animations;
 
@@ -311,7 +757,7 @@ module.exports = Animations = (function(_super) {
 
 });
 require.register('src/components/clickable', function(exports, require, module) {
-var Clickable, Component, _ref,
+var Clickable, Component,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
@@ -321,19 +767,24 @@ Component = require('./component');
 module.exports = Clickable = (function(_super) {
   __extends(Clickable, _super);
 
-  function Clickable() {
-    this.onClick = __bind(this.onClick, this);
-    this.init = __bind(this.init, this);
-    _ref = Clickable.__super__.constructor.apply(this, arguments);
-    return _ref;
-  }
-
   Clickable.prototype._name = 'clickable';
 
-  Clickable.prototype.init = function() {
+  function Clickable() {
+    this.onClick = __bind(this.onClick, this);
+    this.onDisplayObjectCreated = __bind(this.onDisplayObjectCreated, this);
+    Clickable.__super__.constructor.apply(this, arguments);
+    this.requires('view');
+    if (this.entity.view.display_object) {
+      this.onDisplayObjectCreated();
+    } else {
+      this.entity.once('view/display_object_created', this.onDisplayObjectCreated);
+    }
+  }
+
+  Clickable.prototype.onDisplayObjectCreated = function() {
     this.selected = false;
-    this.entity.display_object.setInteractive(true);
-    return this.entity.display_object.click = this.onClick;
+    this.entity.view.display_object.interactive = true;
+    return this.entity.view.display_object.click = this.onClick;
   };
 
   Clickable.prototype.onClick = function(event) {
@@ -349,13 +800,15 @@ require.register('src/components/component', function(exports, require, module) 
 var Component, _,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
-_ = require('underscore');
+_ = require('lodash');
 
 module.exports = Component = (function() {
   function Component(entity, options) {
     this.entity = entity;
+    this.destroy = __bind(this.destroy, this);
     this.requires = __bind(this.requires, this);
     _.extend(this, options);
+    this.engine || (this.engine = require('../engine'));
   }
 
   Component.prototype.requires = function(components) {
@@ -374,6 +827,8 @@ module.exports = Component = (function() {
     }
     return _results;
   };
+
+  Component.prototype.destroy = function() {};
 
   return Component;
 
@@ -403,10 +858,12 @@ module.exports = HexGrid = (function(_super) {
 
 });
 require.register('src/components/hex_position', function(exports, require, module) {
-var Component, HexPosition, HexUtils, _ref,
+var Component, HexPosition, HexUtils, _, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+_ = require('lodash');
 
 Component = require('./component');
 
@@ -416,7 +873,10 @@ module.exports = HexPosition = (function(_super) {
   __extends(HexPosition, _super);
 
   function HexPosition() {
+    this.equals = __bind(this.equals, this);
+    this.toJSON = __bind(this.toJSON, this);
     this.toCubeCoords = __bind(this.toCubeCoords, this);
+    this.setAndEmit = __bind(this.setAndEmit, this);
     this.setHexPosition = __bind(this.setHexPosition, this);
     _ref = HexPosition.__super__.constructor.apply(this, arguments);
     return _ref;
@@ -425,12 +885,36 @@ module.exports = HexPosition = (function(_super) {
   HexPosition.prototype._name = 'hex_position';
 
   HexPosition.prototype.setHexPosition = function(q, r) {
+    var _ref1;
+    if (arguments.length === 1) {
+      _ref1 = q, q = _ref1.q, r = _ref1.r;
+    }
     this.q = q;
     return this.r = r;
   };
 
+  HexPosition.prototype.set = HexPosition.prototype.setHexPosition;
+
+  HexPosition.prototype.setAndEmit = function(position, from_position) {
+    from_position || (from_position = this.toJSON());
+    this.set(position);
+    return this.engine.emit('enter_tile', {
+      entity: this.entity,
+      position: position,
+      from_position: from_position
+    });
+  };
+
   HexPosition.prototype.toCubeCoords = function() {
     return HexUtils.axialToCoubeCoords(this.q, this.r);
+  };
+
+  HexPosition.prototype.toJSON = function() {
+    return _.pick(this, 'q', 'r');
+  };
+
+  HexPosition.prototype.equals = function(pos) {
+    return this.q === pos.q && this.r === pos.r;
   };
 
   return HexPosition;
@@ -504,30 +988,9 @@ module.exports = Pathable = (function(_super) {
 })(Component);
 
 });
-require.register('src/components/player', function(exports, require, module) {
-var Component, Player, _ref,
-  __hasProp = {}.hasOwnProperty,
-  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
-
-Component = require('./component');
-
-module.exports = Player = (function(_super) {
-  __extends(Player, _super);
-
-  function Player() {
-    _ref = Player.__super__.constructor.apply(this, arguments);
-    return _ref;
-  }
-
-  Player.prototype._name = 'player';
-
-  return Player;
-
-})(Component);
-
-});
 require.register('src/components/position', function(exports, require, module) {
 var Component, Position, _ref,
+  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
@@ -537,11 +1000,21 @@ module.exports = Position = (function(_super) {
   __extends(Position, _super);
 
   function Position() {
+    this.set = __bind(this.set, this);
     _ref = Position.__super__.constructor.apply(this, arguments);
     return _ref;
   }
 
   Position.prototype._name = 'position';
+
+  Position.prototype.set = function(x, y) {
+    var _ref1;
+    if (arguments.length === 1) {
+      _ref1 = x, x = _ref1.x, y = _ref1.y;
+    }
+    this.x = x;
+    return this.y = y;
+  };
 
   return Position;
 
@@ -562,22 +1035,64 @@ module.exports = Relations = (function(_super) {
   Relations.prototype._name = 'relations';
 
   function Relations() {
+    this.toJSON = __bind(this.toJSON, this);
+    this.removeChild = __bind(this.removeChild, this);
     this.addChild = __bind(this.addChild, this);
+    this.revertParent = __bind(this.revertParent, this);
+    this.setParent = __bind(this.setParent, this);
     Relations.__super__.constructor.apply(this, arguments);
     this.children = [];
+    if (this.parent) {
+      this.setParent(this.parent);
+    } else {
+      this.parent = null;
+    }
   }
 
-  Relations.prototype.setParent = function(entity) {
-    this.parent = entity;
-    this.emit('parent/changed', this.entity);
-    return this.entity;
+  Relations.prototype.setParent = function(parent) {
+    if (this.entity.equals(parent)) {
+      return console.trace("RelationsComponent: Attempting to set an entity's parent to itself", this.entity);
+    }
+    if (this.previous_parent = this.parent) {
+      this.previous_parent.relations.children = _.without(this.previous_parent.relations.children, this.entity);
+    }
+    if (parent) {
+      this.parent = parent;
+      parent.relations.children.push(this.entity);
+    } else {
+      this.parent = null;
+    }
+    return this.entity.emit('parent/changed', this.entity);
   };
 
-  Relations.prototype.addChild = function(entity) {
-    entity.relations.setParent(this);
-    this.children.push(entity);
-    this.emit('child/added', this.entity);
-    return this.entity;
+  Relations.prototype.revertParent = function() {
+    return this.setParent(this.previous_parent);
+  };
+
+  Relations.prototype.addChild = function(child) {
+    return child.setParent(this.entity);
+  };
+
+  Relations.prototype.removeChild = function(child) {
+    return child.setParent(null);
+  };
+
+  Relations.prototype.toJSON = function() {
+    var e;
+    return {
+      parent: this.parent,
+      previous_parent: this.previous_parent,
+      children: (function() {
+        var _i, _len, _ref, _results;
+        _ref = this.children;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          e = _ref[_i];
+          _results.push(e.id);
+        }
+        return _results;
+      }).call(this)
+    };
   };
 
   return Relations;
@@ -622,10 +1137,32 @@ module.exports = Team = (function(_super) {
   function Team(entity, options) {
     this.entity = entity;
     Team.__super__.constructor.apply(this, arguments);
-    this.players || (this.players = []);
+    this.units || (this.units = []);
   }
 
   return Team;
+
+})(Component);
+
+});
+require.register('src/components/team_membership', function(exports, require, module) {
+var Component, TeamMembership, _ref,
+  __hasProp = {}.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+Component = require('./component');
+
+module.exports = TeamMembership = (function(_super) {
+  __extends(TeamMembership, _super);
+
+  function TeamMembership() {
+    _ref = TeamMembership.__super__.constructor.apply(this, arguments);
+    return _ref;
+  }
+
+  TeamMembership.prototype._name = 'team_membership';
+
+  return TeamMembership;
 
 })(Component);
 
@@ -652,305 +1189,41 @@ module.exports = Tile = (function(_super) {
 })(Component);
 
 });
-require.register('src/config/teams', function(exports, require, module) {
-module.exports = [
-  {
-    name: 'team_one',
-    id: 1,
-    players: [
-      {
-        name: 'murg',
-        view: {
-          texture: 'assets/tiles/alienYellow.png'
-        },
-        hex_position: {
-          q: -2,
-          r: -2
-        }
-      }, {
-        name: 'murlbulge',
-        view: {
-          texture: 'assets/tiles/alienYellow.png'
-        },
-        hex_position: {
-          q: -0,
-          r: -2
-        }
-      }
-    ]
-  }, {
-    name: 'team_two',
-    id: 2,
-    players: [
-      {
-        name: 'blarg',
-        view: {
-          texture: 'assets/tiles/alienPink.png'
-        },
-        hex_position: {
-          q: 2,
-          r: 2
-        }
-      }, {
-        name: 'barglebarg',
-        view: {
-          texture: 'assets/tiles/alienPink.png'
-        },
-        hex_position: {
-          q: 0,
-          r: 2
-        }
-      }
-    ]
-  }
-];
-
-});
-require.register('src/engine/engine', function(exports, require, module) {
-var BUILTIN_PATHS, Engine, Entity, EventEmitter, globals, _,
+require.register('src/components/user', function(exports, require, module) {
+var Component, User,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
-  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-  __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-_ = require('underscore');
+Component = require('./component');
 
-EventEmitter = require('../lib/event_emitter');
+module.exports = User = (function(_super) {
+  __extends(User, _super);
 
-Entity = require('../entities/entity');
+  User.prototype._name = 'user';
 
-globals = window || global;
-
-BUILTIN_PATHS = {
-  commands: 'client/src/commands/',
-  systems: 'client/src/systems/'
-};
-
-Engine = (function(_super) {
-  __extends(Engine, _super);
-
-  function Engine() {
-    this.setActiveTeam = __bind(this.setActiveTeam, this);
-    this.update = __bind(this.update, this);
-    this.stop = __bind(this.stop, this);
-    this.start = __bind(this.start, this);
-    this.removeEntity = __bind(this.removeEntity, this);
-    this.addEntity = __bind(this.addEntity, this);
-    this.ensureEntity = __bind(this.ensureEntity, this);
-    this.getCommand = __bind(this.getCommand, this);
-    this.getSystem = __bind(this.getSystem, this);
-    this.addSystem = __bind(this.addSystem, this);
-    this.initSystem = __bind(this.initSystem, this);
-    this.components = __bind(this.components, this);
-    this.entitiesByComponent = __bind(this.entitiesByComponent, this);
-    this.entityById = __bind(this.entityById, this);
-    this.appendPaths = __bind(this.appendPaths, this);
-    this.loadModules = __bind(this.loadModules, this);
-    this.createSystems = __bind(this.createSystems, this);
-    this.configure = __bind(this.configure, this);
-    Engine.__super__.constructor.apply(this, arguments);
-    this.paused = true;
-    this.modules = [];
-    this.entities = [];
-    this.systems = [];
-    this.commands_by_name = {};
-    this.systems_by_name = {};
-    this.appendPaths(BUILTIN_PATHS);
+  function User(entity, options) {
+    this.entity = entity;
+    this.team = __bind(this.team, this);
+    User.__super__.constructor.apply(this, arguments);
+    this.teams || (this.teams = []);
+    if (this.is_local == null) {
+      this.is_local = true;
+    }
   }
 
-  Engine.prototype.configure = function(options) {
-    this.options = options != null ? options : {};
-    console.trace('configure');
-    if (this.options.paths) {
-      this.appendPaths(this.options.paths);
-    }
-    this.loadModules();
-    this.createSystems();
-    return this.init();
+  User.prototype.team = function() {
+    var _ref;
+    return (_ref = this.teams) != null ? _ref[0] : void 0;
   };
 
-  Engine.prototype.init = function() {
-    var system, _i, _len, _ref;
-    _ref = this.systems;
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      system = _ref[_i];
-      system.init(this);
-    }
-    return this.update();
-  };
+  return User;
 
-  Engine.prototype.createSystems = function() {
-    var Command, System, _i, _j, _len, _len1, _ref, _ref1, _results;
-    _ref = this.modules.systems;
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      System = _ref[_i];
-      this.addSystem(new System(this.options.systems[System._name]));
-    }
-    _ref1 = this.modules.commands;
-    _results = [];
-    for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-      Command = _ref1[_j];
-      _results.push(this.commands_by_name[Command.prototype._name] = Command);
-    }
-    return _results;
-  };
-
-  Engine.prototype.loadModules = function() {
-    var base_path, key, modules, path, paths, registered_modules, _i, _j, _len, _len1, _ref, _results;
-    registered_modules = globals.require.list();
-    _ref = this.paths;
-    _results = [];
-    for (key in _ref) {
-      paths = _ref[key];
-      modules = this.modules[key] = [];
-      for (_i = 0, _len = paths.length; _i < _len; _i++) {
-        base_path = paths[_i];
-        for (_j = 0, _len1 = registered_modules.length; _j < _len1; _j++) {
-          path = registered_modules[_j];
-          if (path.match("^" + base_path)) {
-            modules.push(require(path));
-          }
-        }
-      }
-      _results.push(console.log('loaded', paths, modules));
-    }
-    return _results;
-  };
-
-  Engine.prototype.appendPaths = function(path_obj) {
-    var key, path, paths, _base, _i, _len;
-    this.paths || (this.paths = []);
-    for (key in path_obj) {
-      paths = path_obj[key];
-      if (!BUILTIN_PATHS[key]) {
-        return console.error("Hexxi::configure - given key is not used by Hexxi, maybe a typo?: " + key);
-      }
-      if (!_.isArray(paths)) {
-        paths = [paths];
-      }
-      (_base = this.paths)[key] || (_base[key] = []);
-      for (_i = 0, _len = paths.length; _i < _len; _i++) {
-        path = paths[_i];
-        if (__indexOf.call(this.paths[key], path) < 0) {
-          this.paths[key].push(path);
-        }
-      }
-    }
-  };
-
-  Engine.prototype.entityById = function(id) {
-    return _.find(this.entities, function(entity) {
-      return entity.id === id;
-    });
-  };
-
-  Engine.prototype.entitiesByComponent = function(component_name) {
-    return _.filter(this.entities, function(entity) {
-      return entity.hasComponent(component_name);
-    });
-  };
-
-  Engine.prototype.components = function(component_name) {
-    var entity, _i, _len, _ref, _results;
-    _ref = this.entitiesByComponent(component_name);
-    _results = [];
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      entity = _ref[_i];
-      _results.push(entity[component_name]);
-    }
-    return _results;
-  };
-
-  Engine.prototype.initSystem = function(system) {
-    if (_.isString(system)) {
-      system = this.getSystem(system);
-    }
-    return system.init(this);
-  };
-
-  Engine.prototype.addSystem = function(system) {
-    this.systems.push(system);
-    return this.systems_by_name[system._name] = system;
-  };
-
-  Engine.prototype.getSystem = function(system_name) {
-    return this.systems_by_name[system_name];
-  };
-
-  Engine.prototype.getCommand = function(name) {
-    return this.commands_by_name[name];
-  };
-
-  Engine.prototype.isEntity = function(entity) {
-    return entity instanceof Entity;
-  };
-
-  Engine.prototype.ensureEntity = function(entity) {
-    if (_.isNumber(entity)) {
-      return this.entityById(entity);
-    }
-    return entity;
-  };
-
-  Engine.prototype.addEntity = function(entity) {
-    this.entities.push(entity);
-    return this.emit('entity/created', entity);
-  };
-
-  Engine.prototype.removeEntity = function(entity) {
-    var e;
-    this.emit('entity/destroyed', entity);
-    return this.entities = (function() {
-      var _i, _len, _ref, _results;
-      _ref = this.entities;
-      _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        e = _ref[_i];
-        if (e !== entity) {
-          _results.push(e);
-        }
-      }
-      return _results;
-    }).call(this);
-  };
-
-  Engine.prototype.start = function() {
-    return this.paused = false;
-  };
-
-  Engine.prototype.stop = function() {
-    return this.paused = true;
-  };
-
-  Engine.prototype.update = function() {
-    var system, _i, _len, _ref, _results;
-    window.requestAnimationFrame(this.update);
-    if (this.paused) {
-      return;
-    }
-    _ref = this.systems;
-    _results = [];
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      system = _ref[_i];
-      _results.push(system.update());
-    }
-    return _results;
-  };
-
-  Engine.prototype.setActiveTeam = function(team) {
-    return this.active_team = team;
-  };
-
-  return Engine;
-
-})(EventEmitter);
-
-module.exports = new Engine();
+})(Component);
 
 });
 require.register('src/entities/board', function(exports, require, module) {
 var Board, Entity,
-  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
@@ -959,25 +1232,16 @@ Entity = require('./entity');
 module.exports = Board = (function(_super) {
   __extends(Board, _super);
 
-  Board.prototype._name = 'Board';
+  Board.prototype._name = 'board';
 
   function Board() {
-    this.init = __bind(this.init, this);
     Board.__super__.constructor.apply(this, arguments);
     this.addComponent('position');
     this.addComponent('hex_grid');
-    this.addComponent('view', 'views/view');
+    this.addComponent('view');
     this.addComponent('relations');
     window.board = this;
   }
-
-  Board.prototype.init = function() {
-    return Board.__super__.init.apply(this, arguments);
-  };
-
-  Board.prototype.toString = function() {
-    return ['Board: ', this.x, this.y];
-  };
 
   return Board;
 
@@ -990,7 +1254,7 @@ var Entity, EventEmitter, entity_count, _,
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-_ = require('underscore');
+_ = require('lodash');
 
 EventEmitter = require('../lib/event_emitter');
 
@@ -1000,24 +1264,54 @@ module.exports = Entity = (function(_super) {
   __extends(Entity, _super);
 
   function Entity(options) {
-    this.options = options != null ? options : {};
+    if (options == null) {
+      options = {};
+    }
     this.hasComponent = __bind(this.hasComponent, this);
     this.getComponent = __bind(this.getComponent, this);
     this.addCreatedComponent = __bind(this.addCreatedComponent, this);
     this.addComponent = __bind(this.addComponent, this);
     this.equals = __bind(this.equals, this);
+    this.destroy = __bind(this.destroy, this);
+    this.toString = __bind(this.toString, this);
+    this.options = options;
     Entity.__super__.constructor.apply(this, arguments);
-    this.id = ++entity_count;
+    this.id = options.id || ++entity_count;
     this.components = {};
     this.children = [];
+    this.engine || (this.engine = require('../engine'));
   }
 
+  Entity.prototype.toString = function() {
+    var s, _ref, _ref1, _ref2, _ref3;
+    s = "" + this._name + " (" + this.id + ")\n";
+    if (this.position) {
+      s += " [x: " + ((_ref = this.position) != null ? _ref.x : void 0) + ", y: " + ((_ref1 = this.position) != null ? _ref1.y : void 0) + "]\n";
+    }
+    if (this.hex_position) {
+      s += " [q: " + ((_ref2 = this.hex_position) != null ? _ref2.q : void 0) + ", r: " + ((_ref3 = this.hex_position) != null ? _ref3.r : void 0) + "]\n";
+    }
+    return s;
+  };
+
+  Entity.prototype.destroy = function() {
+    var component, name, _ref, _results;
+    this.removeAllListeners();
+    _ref = this.components;
+    _results = [];
+    for (name in _ref) {
+      component = _ref[name];
+      _results.push(component.destroy());
+    }
+    return _results;
+  };
+
   Entity.prototype.equals = function(entity) {
-    return this.id === entity.id;
+    return this.id === (entity != null ? entity.id : void 0);
   };
 
   Entity.prototype.addComponent = function(component_name, component_path, options) {
-    var Component, component;
+    var Component, component, _base;
     if (arguments.length === 1) {
       Component = this._loadComponent(component_name);
     } else if (_.isObject(component_path)) {
@@ -1026,7 +1320,7 @@ module.exports = Entity = (function(_super) {
     } else {
       Component = this._loadComponent(component_path);
     }
-    options || (options = this.options[component_name]);
+    options = _.defaults(options || {}, (_base = this.options)[component_name] || (_base[component_name] = {}));
     component = new Component(this, options);
     return this.addCreatedComponent(component_name, component);
   };
@@ -1049,7 +1343,7 @@ module.exports = Entity = (function(_super) {
   };
 
   Entity.prototype._loadComponent = function(component_name) {
-    return require("../components/" + component_name);
+    return this.engine.getComponent(component_name);
   };
 
   return Entity;
@@ -1068,46 +1362,34 @@ Entity = require('./entity');
 module.exports = GridTile = (function(_super) {
   __extends(GridTile, _super);
 
-  GridTile.prototype._name = 'GridTile';
+  GridTile.prototype._name = 'grid_tile';
 
   function GridTile() {
     this.toString = __bind(this.toString, this);
     GridTile.__super__.constructor.apply(this, arguments);
-    this.text_anchor = {
-      x: 0,
-      y: 0
-    };
-    this.text_position = {
-      x: 0,
-      y: 0
-    };
-    this.text_format = {
-      font: 'regular 8px Arial',
-      fill: '#ffffff'
-    };
     this.selected_texture = 'assets/tiles/tileWater_full.png';
     this.hover_texture = 'assets/tiles/tileMagic_full.png';
     this.addComponent('hex_position');
-    this.addComponent('view', 'views/sprite', {
-      texture: 'assets/tiles/tileGrass_full.png'
+    this.addComponent('view', 'sprite', {
+      texture: 'assets/tiles/tileGrass.png'
     });
-    this.addComponent('sub_view', 'views/text');
-    this.addComponent('position');
-    this.addComponent('relations');
-    this.addComponent('hover_effects', {
-      outline: {
-        colour: 0xffffff
+    this.addComponent('sub_view', 'text', {
+      text_position: {
+        x: 40,
+        y: 20
       }
     });
-    this.addComponent('highlight');
+    this.addComponent('position');
+    this.addComponent('relations');
+    this.addComponent('hover_effects');
+    this.addComponent('highlight', {
+      texture: this.hover_texture
+    });
     this.addComponent('tile');
   }
 
   GridTile.prototype.toString = function() {
-    var s;
-    s = "q: " + this.q;
-    s += "\nr: " + this.r;
-    return s;
+    return "" + this.hex_position.q + " " + this.hex_position.r;
   };
 
   return GridTile;
@@ -1115,29 +1397,49 @@ module.exports = GridTile = (function(_super) {
 })(Entity);
 
 });
-require.register('src/entities/player', function(exports, require, module) {
-var Entity, Player,
-  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+require.register('src/entities/team', function(exports, require, module) {
+var Entity, Team,
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
 Entity = require('./entity');
 
-module.exports = Player = (function(_super) {
-  __extends(Player, _super);
+module.exports = Team = (function(_super) {
+  __extends(Team, _super);
 
-  Player.prototype._name = 'Player';
+  Team.prototype._name = 'team';
 
-  function Player() {
-    this.toString = __bind(this.toString, this);
+  function Team() {
+    Team.__super__.constructor.apply(this, arguments);
+    this.addComponent('team');
+  }
+
+  return Team;
+
+})(Entity);
+
+});
+require.register('src/entities/unit', function(exports, require, module) {
+var Entity, Unit,
+  __hasProp = {}.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+Entity = require('./entity');
+
+module.exports = Unit = (function(_super) {
+  __extends(Unit, _super);
+
+  Unit.prototype._name = 'unit';
+
+  function Unit() {
     var _base;
-    Player.__super__.constructor.apply(this, arguments);
+    Unit.__super__.constructor.apply(this, arguments);
     (_base = this.options).view || (_base.view = {
       texture: 'assets/tiles/alienGreen.png'
     });
     this.addComponent('hex_position');
-    this.addComponent('view', 'views/sprite');
-    this.addComponent('sub_view', 'views/text');
+    this.addComponent('view', 'sprite');
+    this.addComponent('sub_view', 'text');
     this.addComponent('position');
     this.addComponent('relations');
     this.addComponent('hover_effects', {
@@ -1147,107 +1449,42 @@ module.exports = Player = (function(_super) {
     });
     this.addComponent('selectable');
     this.addComponent('pathable');
-    this.addComponent('player');
+    this.addComponent('team_membership');
+    this.addComponent('animations');
   }
 
-  Player.prototype.toString = function() {
-    return this.name;
-  };
-
-  return Player;
+  return Unit;
 
 })(Entity);
 
 });
-require.register('src/entities/team', function(exports, require, module) {
-var Entity, Team,
-  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+require.register('src/entities/user', function(exports, require, module) {
+var Entity, User,
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
 Entity = require('./entity');
 
-module.exports = Team = (function(_super) {
-  __extends(Team, _super);
+module.exports = User = (function(_super) {
+  __extends(User, _super);
 
-  function Team(attrs) {
-    this.toString = __bind(this.toString, this);
-    Team.__super__.constructor.apply(this, arguments);
-    this.addComponent('team');
+  User.prototype._name = 'user';
+
+  function User() {
+    User.__super__.constructor.apply(this, arguments);
+    this.addComponent('user');
   }
 
-  Team.prototype.toString = function() {
-    var s;
-    s = "q: " + this.q;
-    s += "\nr: " + this.r;
-    return s;
-  };
-
-  return Team;
+  return User;
 
 })(Entity);
 
 });
-require.register('src/input/attack', function(exports, require, module) {
-var AttackContext, Context, Engine, _,
-  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
-  __hasProp = {}.hasOwnProperty,
-  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
-
-_ = require('underscore');
-
-Engine = require('../engine/engine');
-
-Context = require('./context');
-
-module.exports = AttackContext = (function(_super) {
-  __extends(AttackContext, _super);
-
-  function AttackContext(options) {
-    this.onDeselect = __bind(this.onDeselect, this);
-    this.onSelect = __bind(this.onSelect, this);
-    this.toggleSelect = __bind(this.toggleSelect, this);
-    var entity, _i, _len, _ref;
-    _.extend(this, options);
-    this.targets = Engine.entitiesByComponent('selectable');
-    _ref = this.targets;
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      entity = _ref[_i];
-      entity.on('click', this.toggleSelect);
-    }
-  }
-
-  AttackContext.prototype.toggleSelect = function(event, entity) {
-    if (this.selected_entity) {
-      return this.onDeselect(entity);
-    } else {
-      return this.onSelect(entity);
-    }
-  };
-
-  AttackContext.prototype.onSelect = function(entity) {
-    this.selected_entity = entity;
-    entity.selectable.selected = true;
-    return entity.emit('selectable/select', entity);
-  };
-
-  AttackContext.prototype.onDeselect = function(entity) {
-    entity.selectable.selected = false;
-    return entity.emit('selectable/deselect', entity);
-  };
-
-  return AttackContext;
-
-})(Context);
-
-});
 require.register('src/input/context', function(exports, require, module) {
-var Context, Engine, _,
+var Context, _,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
-_ = require('underscore');
-
-Engine = require('../engine/engine');
+_ = require('lodash');
 
 module.exports = Context = (function() {
   function Context(options) {
@@ -1259,8 +1496,9 @@ module.exports = Context = (function() {
     _.extend(this, options);
     this.entities = [];
     this.sub_contexts = [];
-    Engine.on('entity/created', this.onEntityCreated);
-    Engine.on('entity/destroyed', this.onEntityDestroyed);
+    this.engine || (this.engine = require('../engine'));
+    this.engine.on('entity/created', this.onEntityCreated);
+    this.engine.on('entity/destroyed', this.onEntityDestroyed);
   }
 
   Context.prototype.onEntityCreated = function(entity) {};
@@ -1275,7 +1513,7 @@ module.exports = Context = (function() {
 
   Context.prototype.bindEvents = function() {
     var entity, _i, _len, _ref, _results;
-    _ref = Engine.entities;
+    _ref = this.engine.entities;
     _results = [];
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       entity = _ref[_i];
@@ -1296,14 +1534,12 @@ module.exports = Context = (function() {
 
 });
 require.register('src/input/select', function(exports, require, module) {
-var Context, Engine, SelectContext, _, _ref,
+var Context, SelectContext, _, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-_ = require('underscore');
-
-Engine = require('../engine/engine');
+_ = require('lodash');
 
 Context = require('./context');
 
@@ -1313,6 +1549,7 @@ module.exports = SelectContext = (function(_super) {
   function SelectContext() {
     this.select = __bind(this.select, this);
     this.deactivate = __bind(this.deactivate, this);
+    this.onEntityCreated = __bind(this.onEntityCreated, this);
     this.activate = __bind(this.activate, this);
     _ref = SelectContext.__super__.constructor.apply(this, arguments);
     return _ref;
@@ -1322,7 +1559,8 @@ module.exports = SelectContext = (function(_super) {
 
   SelectContext.prototype.activate = function() {
     var entity, _i, _len, _ref1, _results;
-    this.entities = Engine.entitiesByComponent('selectable');
+    this.active = true;
+    this.entities = this.engine.entitiesByComponent('selectable');
     _ref1 = this.entities;
     _results = [];
     for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
@@ -1332,8 +1570,17 @@ module.exports = SelectContext = (function(_super) {
     return _results;
   };
 
+  SelectContext.prototype.onEntityCreated = function(entity) {
+    if (!this.active) {
+      return;
+    }
+    this.entities.push(entity);
+    return entity.on('click', this.select);
+  };
+
   SelectContext.prototype.deactivate = function() {
     var entity, _i, _len, _ref1, _results;
+    this.active = false;
     _ref1 = this.entities;
     _results = [];
     for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
@@ -1343,13 +1590,15 @@ module.exports = SelectContext = (function(_super) {
     return _results;
   };
 
-  SelectContext.prototype.select = function(e, entity) {
-    console.log('entityseleting');
-    if (!Engine.getSystem('teams').isAlly(entity)) {
+  SelectContext.prototype.select = function(entity, event) {
+    if (!this.engine.started) {
       return;
     }
-    Engine.getSystem('selectables').select(entity);
-    return Engine.getSystem('input').setContext('selected', entity);
+    if (!this.engine.getSystem('teams').isAlly(entity)) {
+      return;
+    }
+    this.engine.getSystem('selectables').select(entity);
+    return this.engine.getSystem('input').setContext('selected', entity);
   };
 
   return SelectContext;
@@ -1358,14 +1607,12 @@ module.exports = SelectContext = (function(_super) {
 
 });
 require.register('src/input/selected', function(exports, require, module) {
-var AllySelectedContext, Engine, MoveCommand, Select, _,
+var AllySelectedContext, MoveCommand, Select, _, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-_ = require('underscore');
-
-Engine = require('../engine/engine');
+_ = require('lodash');
 
 MoveCommand = require('../commands/move');
 
@@ -1374,111 +1621,231 @@ Select = require('./select');
 module.exports = AllySelectedContext = (function(_super) {
   __extends(AllySelectedContext, _super);
 
-  AllySelectedContext.prototype._name = 'selected';
-
   function AllySelectedContext() {
     this.onTileSelect = __bind(this.onTileSelect, this);
     this.onEnemySelect = __bind(this.onEnemySelect, this);
     this.onAllySelect = __bind(this.onAllySelect, this);
+    this.onRightClick = __bind(this.onRightClick, this);
     this.deactivate = __bind(this.deactivate, this);
     this.activate = __bind(this.activate, this);
+    _ref = AllySelectedContext.__super__.constructor.apply(this, arguments);
+    return _ref;
   }
 
+  AllySelectedContext.prototype._name = 'selected';
+
   AllySelectedContext.prototype.activate = function(entity) {
-    var tile, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _ref, _ref1, _ref2, _ref3, _ref4, _results;
+    var tile, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _ref1, _ref2, _ref3, _ref4, _ref5;
     this.entity = entity;
-    console.log('selectedcontext activated', arguments);
-    this.ally_players = [];
-    this.enemy_players = [];
+    this.ally_units = [];
+    this.enemy_units = [];
     this.tiles = [];
-    _ref = Engine.entitiesByComponent('selectable');
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      entity = _ref[_i];
-      if (Engine.getSystem('teams').isAlly(entity)) {
-        this.ally_players.push(entity);
+    _ref1 = this.engine.entitiesByComponent('selectable');
+    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+      entity = _ref1[_i];
+      if (this.engine.getSystem('teams').isAlly(entity)) {
+        this.ally_units.push(entity);
       }
-      if (Engine.getSystem('teams').isEnemy(entity)) {
-        this.enemy_players.push(entity);
+      if (this.engine.getSystem('teams').isEnemy(entity)) {
+        this.enemy_units.push(entity);
       }
     }
-    _ref1 = Engine.entitiesByComponent('tile');
-    for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-      tile = _ref1[_j];
-      this.tiles.push(tile);
+    _ref2 = this.engine.entitiesByComponent('tile');
+    for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
+      tile = _ref2[_j];
+      if (!this.engine.getSystem('hex_grid').occupied(tile.hex_position)) {
+        this.tiles.push(tile);
+      }
     }
-    _ref2 = this.ally_players;
-    for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
-      entity = _ref2[_k];
+    _ref3 = this.ally_units;
+    for (_k = 0, _len2 = _ref3.length; _k < _len2; _k++) {
+      entity = _ref3[_k];
       entity.on('click', this.onAllySelect);
     }
-    _ref3 = this.enemy_players;
-    for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
-      entity = _ref3[_l];
+    _ref4 = this.enemy_units;
+    for (_l = 0, _len3 = _ref4.length; _l < _len3; _l++) {
+      entity = _ref4[_l];
       entity.on('click', this.onEnemySelect);
     }
-    _ref4 = this.tiles;
-    _results = [];
-    for (_m = 0, _len4 = _ref4.length; _m < _len4; _m++) {
-      entity = _ref4[_m];
-      _results.push(entity.on('click', this.onTileSelect));
+    _ref5 = this.tiles;
+    for (_m = 0, _len4 = _ref5.length; _m < _len4; _m++) {
+      entity = _ref5[_m];
+      entity.on('click', this.onTileSelect);
     }
-    return _results;
+    return this.engine.on('rightclick', this.onRightClick);
   };
 
   AllySelectedContext.prototype.deactivate = function() {
-    var entity, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2, _results;
-    console.log('selectedcontext deactivated');
-    _ref = this.ally_players;
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      entity = _ref[_i];
+    var entity, _i, _j, _k, _len, _len1, _len2, _ref1, _ref2, _ref3, _results;
+    _ref1 = this.ally_units;
+    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+      entity = _ref1[_i];
       entity.off('click', this.onAllySelect);
     }
-    _ref1 = this.enemy_players;
-    for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-      entity = _ref1[_j];
+    _ref2 = this.enemy_units;
+    for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
+      entity = _ref2[_j];
       entity.off('click', this.onEnemySelect);
     }
-    _ref2 = this.tiles;
+    _ref3 = this.tiles;
     _results = [];
-    for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
-      entity = _ref2[_k];
+    for (_k = 0, _len2 = _ref3.length; _k < _len2; _k++) {
+      entity = _ref3[_k];
       _results.push(entity.off('click', this.onTileSelect));
     }
     return _results;
   };
 
-  AllySelectedContext.prototype.onAllySelect = function(e, entity) {
-    console.log('ally select', entity);
-    Engine.getSystem('selectables').select(entity);
-    return Engine.getSystem('input').setContext('selected', entity);
+  AllySelectedContext.prototype.onRightClick = function() {
+    this.engine.getSystem('selectables').deselect(this.entity);
+    return this.engine.getSystem('input').setContext('select');
   };
 
-  AllySelectedContext.prototype.onEnemySelect = function(e, entity) {
+  AllySelectedContext.prototype.onAllySelect = function(entity, event) {
+    var selected;
+    if (selected = this.engine.getSystem('selectables').toggle(entity)) {
+      return this.engine.getSystem('input').setContext('selected', entity);
+    } else {
+      return this.engine.getSystem('input').setContext('select');
+    }
+  };
+
+  AllySelectedContext.prototype.onEnemySelect = function(entity, event) {
     var command, path;
-    console.log('enemy select', entity);
-    path = Engine.getSystem('pathing').path;
+    if (!(path = this.engine.getSystem('pathing').path)) {
+      return;
+    }
     command = new MoveCommand({
       entity: this.entity,
       path: path
     });
-    Engine.getSystem('command_queue').push(command);
-    return Engine.getSystem('input').setContext('select');
+    this.engine.getSystem('selectables').deselect(this.entity);
+    this.engine.getSystem('command_queue').push(command);
+    return this.engine.getSystem('input').setContext('select');
   };
 
-  AllySelectedContext.prototype.onTileSelect = function(e, entity) {
+  AllySelectedContext.prototype.onTileSelect = function(entity, event) {
     var command, path;
-    path = Engine.getSystem('pathing').path;
+    if (!(path = this.engine.getSystem('pathing').path)) {
+      return;
+    }
     command = new MoveCommand({
       entity: this.entity,
       path: path
     });
-    Engine.getSystem('command_queue').push(command);
-    return Engine.getSystem('input').setContext('select');
+    this.engine.getSystem('selectables').deselect(this.entity);
+    this.engine.getSystem('command_queue').push(command);
+    return this.engine.getSystem('input').setContext('select');
   };
 
   return AllySelectedContext;
 
 })(Select);
+
+});
+require.register('src/lib/animation_utils', function(exports, require, module) {
+var AnimationUtils, HIT_THRESHOLD, MIN_SPEED, tweene, _;
+
+_ = require('lodash');
+
+tweene = require('tween.js');
+
+MIN_SPEED = 0.5;
+
+HIT_THRESHOLD = 1;
+
+module.exports = AnimationUtils = (function() {
+  function AnimationUtils() {}
+
+  AnimationUtils.reachedTarget = function(entity, target) {
+    return Math.abs(entity.position.x - target.position.x) < HIT_THRESHOLD && Math.abs(entity.position.y - target.position.y) < HIT_THRESHOLD;
+  };
+
+  AnimationUtils.updatePosition = function(entity, target, speed) {
+    var dx, dy;
+    dx = (target.position.x - entity.position.x) * speed;
+    dy = (target.position.y - entity.position.y) * speed;
+    if (dx > 0 && dx < MIN_SPEED) {
+      dx = MIN_SPEED;
+    }
+    if (dx < 0 && dx > -MIN_SPEED) {
+      dx = -MIN_SPEED;
+    }
+    if (dy > 0 && dy < MIN_SPEED) {
+      dy = MIN_SPEED;
+    }
+    if (dy < 0 && dy > -MIN_SPEED) {
+      dy = -MIN_SPEED;
+    }
+    entity.position.x += dx;
+    return entity.position.y += dy;
+  };
+
+  AnimationUtils.toTarget = function(engine, hex_position) {
+    var pixel_coords;
+    if (hex_position.position) {
+      return hex_position;
+    }
+    pixel_coords = engine.getSystem('hex_grid').coordsToPixel(hex_position);
+    return {
+      position: pixel_coords,
+      hex_position: hex_position
+    };
+  };
+
+  return AnimationUtils;
+
+}).call(this);
+
+});
+require.register('src/lib/effect_utils', function(exports, require, module) {
+var DEFAULTS, EffectUtils, PIXI;
+
+PIXI = require('pixi.js');
+
+DEFAULTS = {
+  OUTLINE_COLOUR: '#ffff55'
+};
+
+module.exports = EffectUtils = (function() {
+  function EffectUtils() {}
+
+  EffectUtils.initEffects = function(entity, component) {
+    if (component.outline) {
+      EffectUtils.createOutline(entity, component);
+    }
+    return entity;
+  };
+
+  EffectUtils.createOutline = function(entity, component) {
+    component.display_object = new PIXI.Graphics();
+    component.display_object.lineStyle(1, component.outline.colour || DEFAULTS.OUTLINE_COLOUR);
+    component.display_object.drawCircle(0, 0, 35);
+    component.display_object.endFill();
+    component.display_object.position.x = 35;
+    return component.display_object.position.y = 35;
+  };
+
+  EffectUtils.activate = function(entity, component) {
+    if (component.outline) {
+      return entity.view.display_object.addChild(component.display_object);
+    } else if (component.texture) {
+      component.previous_texture = entity.view.display_object.texture;
+      return entity.view.display_object.texture = PIXI.Texture.fromImage(component.texture);
+    }
+  };
+
+  EffectUtils.deactivate = function(entity, component) {
+    if (component.outline) {
+      return entity.view.display_object.removeChild(component.display_object);
+    } else if (component.texture) {
+      return entity.view.display_object.texture = component.previous_texture;
+    }
+  };
+
+  return EffectUtils;
+
+}).call(this);
 
 });
 require.register('src/lib/event_emitter', function(exports, require, module) {
@@ -1566,6 +1933,10 @@ module.exports = HexUtils = (function() {
   function HexUtils() {}
 
   HexUtils.NEIGHBOURS = [[+1, 0], [+1, -1], [0, -1], [-1, 0], [-1, +1], [0, +1]];
+
+  HexUtils.equal = function(p1, p2) {
+    return (p1 != null ? p1.q : void 0) === (p2 != null ? p2.q : void 0) && (p1 != null ? p1.r : void 0) === (p2 != null ? p2.r : void 0);
+  };
 
   HexUtils.heightFromSize = function(size) {
     return size * 2;
@@ -1684,8 +2055,10 @@ module.exports = HexUtils = (function() {
 
 });
 require.register('src/lib/path', function(exports, require, module) {
-var HexUtils, MOVE_COST, Path,
+var HexUtils, MOVE_COST, Path, _,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+_ = require('lodash');
 
 HexUtils = require('./hex_utils');
 
@@ -1765,7 +2138,7 @@ module.exports = Path = (function() {
     this.open.push(start);
     while (this.open.length > 0) {
       closing = this.open.shift();
-      if (this._equal(closing, this.goal)) {
+      if (HexUtils.equal(closing, this.goal)) {
         this.closed[this.hash(closing)] = closing;
         path = this._tracePathToStart(closing);
         return path;
@@ -1794,16 +2167,12 @@ module.exports = Path = (function() {
     for (dir = _i = 0; _i <= 5; dir = ++_i) {
       coord = HexUtils.neighbour(node, dir);
       if (n = (_ref = this.map[coord.q]) != null ? _ref[coord.r] : void 0) {
-        if (n.traversable || (this.end_traversable && this._equal(n, this.goal))) {
+        if (n.traversable || (this.end_traversable && HexUtils.equal(n, this.goal))) {
           adjacent.push(this._toNode(n));
         }
       }
     }
     return adjacent;
-  };
-
-  Path.prototype._equal = function(a, b) {
-    return a.q === b.q && a.r === b.r;
   };
 
   Path.prototype._tracePathToStart = function(node) {
@@ -1862,70 +2231,118 @@ module.exports = Path = (function() {
 }).call(this);
 
 });
-require.register('src/systems/action_queue', function(exports, require, module) {
-var ActionQueue, System,
-  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
-  __hasProp = {}.hasOwnProperty,
-  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+require.register('src/states/state', function(exports, require, module) {
+var State;
 
-System = require('./system');
+module.exports = State = (function() {
+  function State() {}
 
-module.exports = ActionQueue = (function(_super) {
-  __extends(ActionQueue, _super);
+  State.prototype.init = function() {};
 
-  ActionQueue.prototype._name = 'action_queue';
+  State.prototype.preload = function() {};
 
-  function ActionQueue() {
-    this.update = __bind(this.update, this);
-    ActionQueue.__super__.constructor.apply(this, arguments);
-    this.actions = [];
+  State.prototype.create = function() {};
+
+  State.prototype.update = function() {};
+
+  State.prototype.paused = function() {};
+
+  State.prototype.shutdown = function() {};
+
+  return State;
+
+})();
+
+});
+require.register('src/states/state_manager', function(exports, require, module) {
+var StateManager, _,
+  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+_ = require('lodash');
+
+module.exports = StateManager = (function() {
+  function StateManager(options) {
+    this._setCurrentState = __bind(this._setCurrentState, this);
+    this.preUpdate = __bind(this.preUpdate, this);
+    this.start = __bind(this.start, this);
+    this.add = __bind(this.add, this);
+    this.configure = __bind(this.configure, this);
+    this.states = {};
+    if (options) {
+      this.configure(options);
+    }
   }
 
-  ActionQueue.prototype.unshift = function(action) {
-    return this.actions.unshift(action);
-  };
-
-  ActionQueue.prototype.push = function(action) {
-    return this.actions.push(action);
-  };
-
-  ActionQueue.prototype.pop = function(action) {
-    return this.actions.pop(action);
-  };
-
-  ActionQueue.prototype.pause = function(action) {
-    return this.actions.pause(action);
-  };
-
-  ActionQueue.prototype.update = function() {
-    var _ref;
-    if ((_ref = this.current_action) != null ? _ref.complete : void 0) {
-      this.current_action = null;
+  StateManager.prototype.configure = function(options) {
+    var state, state_name, _ref, _results;
+    if (options != null ? options.states : void 0) {
+      _ref = options.states;
+      _results = [];
+      for (state_name in _ref) {
+        state = _ref[state_name];
+        _results.push(this.add(state_name, state));
+      }
+      return _results;
     }
-    if (!(this.current_action || this.actions.length)) {
+  };
+
+  StateManager.prototype.add = function(state_name, state) {
+    return this.states[state_name] = state;
+  };
+
+  StateManager.prototype.start = function(state_name) {
+    if (this.current_state_name === state_name) {
+      return console.log("Hexxi.StateManager.Start: " + state_name + " is the currrent state");
+    }
+    if (this._pending_state_name === state_name) {
+      return console.log("Hexxi.StateManager.Start: " + state_name + " is already pending");
+    }
+    if (!this.states[state_name]) {
+      return console.error("Hexxi.StateManager.Start: " + state_name + " state does not exist (configure with options.states)");
+    }
+    return this._pending_state_name = state_name;
+  };
+
+  StateManager.prototype.preUpdate = function() {
+    var _ref;
+    if (!this._pending_state_name) {
       return;
     }
-    if (this.current_action || (this.current_action = this.pop())) {
-      return this.current_action.update();
+    if ((_ref = this.current_state) != null) {
+      _ref.shutdown();
     }
+    return this._setCurrentState(this._pending_state_name);
   };
 
-  return ActionQueue;
+  StateManager.prototype._setCurrentState = function(state_name) {
+    this.current_state_name = state_name;
+    this._pending_state_name = null;
+    this.current_state = new this.states[state_name]();
+    this.current_state.init();
+    this.current_state.preload();
+    return this.current_state.create();
+  };
 
-})(System);
+  return StateManager;
+
+})();
 
 });
 require.register('src/systems/animations', function(exports, require, module) {
-var AnimationSystem, Engine, System, tweene,
+var AnimationSystem, HexPathAnimation, LinearAnimation, System, tweene, _,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-Engine = require('../engine/engine');
+_ = require('lodash');
+
+tweene = require('tween.js');
 
 System = require('./system');
 
-tweene = require('tween');
+HexPathAnimation = require('../animations/hex_path');
+
+LinearAnimation = require('../animations/linear');
 
 module.exports = AnimationSystem = (function(_super) {
   __extends(AnimationSystem, _super);
@@ -1933,13 +2350,20 @@ module.exports = AnimationSystem = (function(_super) {
   AnimationSystem.prototype._name = 'animations';
 
   function AnimationSystem() {
+    this.addAnimation = __bind(this.addAnimation, this);
+    this.animateHexPath = __bind(this.animateHexPath, this);
+    this.animateLinear = __bind(this.animateLinear, this);
     this.update = __bind(this.update, this);
+    this.preUpdate = __bind(this.preUpdate, this);
     this.onTweenComplete = __bind(this.onTweenComplete, this);
     this.onCancel = __bind(this.onCancel, this);
     this.onPause = __bind(this.onPause, this);
     this.onStart = __bind(this.onStart, this);
     this.onEntityDestroyed = __bind(this.onEntityDestroyed, this);
     this.onEntityCreated = __bind(this.onEntityCreated, this);
+    AnimationSystem.__super__.constructor.apply(this, arguments);
+    this.animations = [];
+    this.pending_animations = [];
   }
 
   AnimationSystem.prototype.onEntityCreated = function(entity) {
@@ -1997,8 +2421,48 @@ module.exports = AnimationSystem = (function(_super) {
 
   AnimationSystem.prototype.onTweenComplete = function() {};
 
+  AnimationSystem.prototype.preUpdate = function() {
+    this.animations = this.pending_animations;
+    return this.pending_animations = [];
+  };
+
   AnimationSystem.prototype.update = function() {
-    return tweene.update();
+    var animation, _i, _len, _ref, _results;
+    tweene.update();
+    if (this.animations.length) {
+      _ref = this.animations;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        animation = _ref[_i];
+        animation.update();
+        if (!animation.complete) {
+          _results.push(this.pending_animations.push(animation));
+        } else {
+          _results.push(void 0);
+        }
+      }
+      return _results;
+    }
+  };
+
+  AnimationSystem.prototype.animateLinear = function(entity, target, callback) {
+    return this.addAnimation(new LinearAnimation({
+      entity: entity,
+      target: target
+    }), callback);
+  };
+
+  AnimationSystem.prototype.animateHexPath = function(entity, path, callback) {
+    return this.addAnimation(new HexPathAnimation({
+      entity: entity,
+      path: path,
+      callback: callback
+    }));
+  };
+
+  AnimationSystem.prototype.addAnimation = function(animation, callback) {
+    this.pending_animations.push(animation);
+    return animation.entity.animations.add(animation, callback);
   };
 
   return AnimationSystem;
@@ -2007,12 +2471,10 @@ module.exports = AnimationSystem = (function(_super) {
 
 });
 require.register('src/systems/command_queue', function(exports, require, module) {
-var CommandQueue, Engine, MultiplayerSystem, System,
+var CommandQueue, MultiplayerSystem, System,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
-
-Engine = require('../engine/engine');
 
 System = require('./system');
 
@@ -2046,7 +2508,7 @@ module.exports = CommandQueue = (function(_super) {
   };
 
   CommandQueue.prototype.update = function() {
-    MultiplayerSystem || (MultiplayerSystem = Engine.getSystem('multiplayer'));
+    MultiplayerSystem || (MultiplayerSystem = this.engine.getSystem('multiplayer'));
     if (this.current_command = this.pop()) {
       if (!this.current_command.options.remote) {
         MultiplayerSystem.sendCommand(this.current_command);
@@ -2061,14 +2523,14 @@ module.exports = CommandQueue = (function(_super) {
 
 });
 require.register('src/systems/hex_grid', function(exports, require, module) {
-var Board, Engine, GridTile, HexGrid, HexUtils, System, _,
+var Board, GridTile, HexGrid, HexUtils, Queue, System, _,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-_ = require('underscore');
+_ = require('lodash');
 
-Engine = require('../engine/engine');
+Queue = require('queue-async');
 
 System = require('./system');
 
@@ -2089,24 +2551,28 @@ module.exports = HexGrid = (function(_super) {
     this.getTile = __bind(this.getTile, this);
     this.entitiesNotAtCoords = __bind(this.entitiesNotAtCoords, this);
     this.entitiesAtCoords = __bind(this.entitiesAtCoords, this);
+    this.occupied = __bind(this.occupied, this);
     this.coordsToPixelOffset = __bind(this.coordsToPixelOffset, this);
     this.coordsToPixel = __bind(this.coordsToPixel, this);
     this.pixelToCoords = __bind(this.pixelToCoords, this);
     this.mouseEventCoords = __bind(this.mouseEventCoords, this);
     this.setScreenCoords = __bind(this.setScreenCoords, this);
+    this.hexPathMove = __bind(this.hexPathMove, this);
+    this.linearMove = __bind(this.linearMove, this);
+    this.createTiles = __bind(this.createTiles, this);
+    this.createBoard = __bind(this.createBoard, this);
     this.update = __bind(this.update, this);
     this.onClick = __bind(this.onClick, this);
     this.onMousemove = __bind(this.onMousemove, this);
     this.onEntityCreated = __bind(this.onEntityCreated, this);
-    this.init = __bind(this.init, this);
-    this.createTiles = __bind(this.createTiles, this);
-    this.createGrid = __bind(this.createGrid, this);
+    HexGrid.__super__.constructor.apply(this, arguments);
     _.defaults(this.options, {
       tile_entity: GridTile,
       symmetrical: true,
       tile_size: 36,
       rows: 8,
-      columns: 8
+      columns: 8,
+      z_index: -1000
     });
     _ref = this.options;
     for (key in _ref) {
@@ -2119,65 +2585,7 @@ module.exports = HexGrid = (function(_super) {
     if (this.tile_width == null) {
       this.tile_width = HexUtils.widthFromSize(this.tile_size);
     }
-    if (!Engine.isEntity(this.board)) {
-      this.board = new Board(_.defaults(this.board || {}, {
-        position: {
-          x: 10,
-          y: 10
-        }
-      }));
-    }
-    console.log(Math.floor(this.rows / 2) * this.tile_width, 3 / 4 * Math.floor(this.columns / 2) * this.tile_height);
-    this.board.position.x += Math.floor(this.rows / 2) * this.tile_width;
-    this.board.position.y += 3 / 4 * Math.floor(this.columns / 2) * this.tile_height;
-    console.log(this.board);
   }
-
-  HexGrid.prototype.createGrid = function() {
-    var tile, _i, _len, _ref, _results;
-    Engine.addEntity(this.board);
-    this.tiles = this.createTiles();
-    _ref = this.tiles;
-    _results = [];
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      tile = _ref[_i];
-      _results.push(Engine.addEntity(tile));
-    }
-    return _results;
-  };
-
-  HexGrid.prototype.createTiles = function() {
-    var from, q, r, tile, tiles, to, _i, _j, _ref, _ref1;
-    tiles = [];
-    for (r = _i = _ref = Math.floor(-this.columns / 2) + 1, _ref1 = Math.floor(this.columns / 2); _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; r = _ref <= _ref1 ? ++_i : --_i) {
-      from = Math.floor(-this.rows / 2) + 1 - Math.ceil(r / 2);
-      to = Math.floor(this.rows / 2) - Math.ceil(r / 2);
-      if (this.symmetrical && r % 2 !== 0) {
-        from += 1;
-      }
-      for (q = _j = from; from <= to ? _j <= to : _j >= to; q = from <= to ? ++_j : --_j) {
-        tile = new this.tile_entity({
-          hex_position: {
-            q: q,
-            r: r,
-            traversable: true
-          },
-          relations: {
-            parent: this.board
-          }
-        });
-        tiles.push(tile);
-      }
-    }
-    return tiles;
-  };
-
-  HexGrid.prototype.init = function() {
-    HexGrid.__super__.init.apply(this, arguments);
-    this.createGrid(this.options);
-    document.addEventListener('mousemove', this.onMousemove);
-    return document.addEventListener('click', this.onClick);
-  };
 
   HexGrid.prototype.onEntityCreated = function(entity) {
     if (entity.hasComponent('hex_grid')) {
@@ -2197,7 +2605,7 @@ module.exports = HexGrid = (function(_super) {
         continue;
       }
       entity.hovering = true;
-      entity.emit('mouseover', event, entity);
+      entity.emit('mouseover', entity, event);
     }
     _ref1 = this.entitiesNotAtCoords(coords);
     _results = [];
@@ -2207,7 +2615,7 @@ module.exports = HexGrid = (function(_super) {
         continue;
       }
       entity.hovering = false;
-      _results.push(entity.emit('mouseout', event, entity));
+      _results.push(entity.emit('mouseout', entity, event));
     }
     return _results;
   };
@@ -2215,19 +2623,18 @@ module.exports = HexGrid = (function(_super) {
   HexGrid.prototype.onClick = function(event) {
     var coords, entity, _i, _len, _ref, _results;
     coords = this.mouseEventCoords(event);
-    console.log(this.entitiesAtCoords(coords));
     _ref = this.entitiesAtCoords(coords);
     _results = [];
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       entity = _ref[_i];
-      _results.push(entity.emit('click', event, entity));
+      _results.push(entity.emit('click', entity, event));
     }
     return _results;
   };
 
   HexGrid.prototype.update = function() {
     var entity, _i, _len, _ref, _results;
-    _ref = Engine.entitiesByComponent('hex_position');
+    _ref = this.engine.entitiesByComponent('hex_position');
     _results = [];
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       entity = _ref[_i];
@@ -2239,6 +2646,93 @@ module.exports = HexGrid = (function(_super) {
       }
     }
     return _results;
+  };
+
+  HexGrid.prototype.createBoard = function() {
+    var tile, _i, _len, _ref;
+    if (!this.engine.isEntity(this.board)) {
+      this.board = new Board(_.defaults(this.board || {}, {
+        position: {
+          x: 10,
+          y: 10
+        }
+      }));
+      this.board.position.x += Math.floor(this.rows / 2) * this.tile_width;
+      this.board.position.y += 3 / 4 * Math.floor(this.columns / 2) * this.tile_height;
+    }
+    this.engine.addEntity(this.board);
+    this.tiles = this.createTiles();
+    _ref = this.tiles;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      tile = _ref[_i];
+      this.engine.addEntity(tile);
+    }
+    document.addEventListener('mousemove', this.onMousemove);
+    this.engine.on('click', this.onClick);
+    this.engine.emit('hex_grid/board_created', this.board);
+    return this.board;
+  };
+
+  HexGrid.prototype.createTiles = function() {
+    var from, layer, q, r, tile, tiles, to, _i, _j, _ref, _ref1;
+    tiles = [];
+    layer = this.z_index;
+    for (r = _i = _ref = Math.floor(-this.columns / 2) + 1, _ref1 = Math.floor(this.columns / 2); _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; r = _ref <= _ref1 ? ++_i : --_i) {
+      from = Math.floor(-this.rows / 2) + 1 - Math.ceil(r / 2);
+      to = Math.floor(this.rows / 2) - Math.ceil(r / 2);
+      if (this.symmetrical && r % 2 !== 0) {
+        from += 1;
+      }
+      for (q = _j = from; from <= to ? _j <= to : _j >= to; q = from <= to ? ++_j : --_j) {
+        tile = new this.tile_entity({
+          hex_position: {
+            q: q,
+            r: r,
+            traversable: true
+          },
+          relations: {
+            parent: this.board
+          },
+          view: {
+            z_index: layer
+          }
+        });
+        tiles.push(tile);
+      }
+      layer++;
+    }
+    return tiles;
+  };
+
+  HexGrid.prototype.linearMove = function(entity, to_position, callback) {
+    var _this = this;
+    return this.engine.getSystem('animations').animateLinear(entity, to_position, function(err) {
+      return callback(err, entity.hex_position.setAndEmit(to_position));
+    });
+  };
+
+  HexGrid.prototype.hexPathMove = function(entity, path, callback) {
+    var pos, queue, _fn, _i, _len, _ref,
+      _this = this;
+    if (!_.isArray(path)) {
+      path = [path];
+    }
+    callback || (callback = function() {});
+    queue = new Queue(1);
+    _ref = path.reverse();
+    _fn = function(pos) {
+      return queue.defer(function(callback) {
+        if (entity.hex_position.equals(pos)) {
+          return callback();
+        }
+        return _this.linearMove(entity, pos, callback);
+      });
+    };
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      pos = _ref[_i];
+      _fn(pos);
+    }
+    return queue.await(callback);
   };
 
   HexGrid.prototype.setScreenCoords = function(entity) {
@@ -2259,7 +2753,7 @@ module.exports = HexGrid = (function(_super) {
 
   HexGrid.prototype.coordsToPixel = function(q, r) {
     var _ref;
-    if (arguments.length === 1) {
+    if (r == null) {
       _ref = q, q = _ref.q, r = _ref.r;
     }
     return {
@@ -2276,12 +2770,28 @@ module.exports = HexGrid = (function(_super) {
     return pos;
   };
 
+  HexGrid.prototype.occupied = function(q, r) {
+    var e;
+    return ((function() {
+      var _i, _len, _ref, _results;
+      _ref = this.entitiesAtCoords(q, r);
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        e = _ref[_i];
+        if (!e.hex_position.traversable) {
+          _results.push(e);
+        }
+      }
+      return _results;
+    }).call(this)).length;
+  };
+
   HexGrid.prototype.entitiesAtCoords = function(q, r) {
     var e, _i, _len, _ref, _ref1, _results;
-    if (arguments.length === 1) {
+    if (r == null) {
       _ref = q, q = _ref.q, r = _ref.r;
     }
-    _ref1 = Engine.entitiesByComponent('hex_position');
+    _ref1 = this.engine.entitiesByComponent('hex_position');
     _results = [];
     for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
       e = _ref1[_i];
@@ -2294,10 +2804,10 @@ module.exports = HexGrid = (function(_super) {
 
   HexGrid.prototype.entitiesNotAtCoords = function(q, r) {
     var e, _i, _len, _ref, _ref1, _results;
-    if (arguments.length === 1) {
+    if (r == null) {
       _ref = q, q = _ref.q, r = _ref.r;
     }
-    _ref1 = Engine.entitiesByComponent('hex_position');
+    _ref1 = this.engine.entitiesByComponent('hex_position');
     _results = [];
     for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
       e = _ref1[_i];
@@ -2310,10 +2820,10 @@ module.exports = HexGrid = (function(_super) {
 
   HexGrid.prototype.getTile = function(q, r) {
     var _ref;
-    if (arguments.length === 1) {
+    if (r == null) {
       _ref = q, q = _ref.q, r = _ref.r;
     }
-    return _.find(Engine.entitiesByComponent('tile'), function(test) {
+    return _.find(this.engine.entitiesByComponent('tile'), function(test) {
       return test.hex_position.q === q && test.hex_position.r === r;
     });
   };
@@ -2324,18 +2834,14 @@ module.exports = HexGrid = (function(_super) {
 
 });
 require.register('src/systems/highlights', function(exports, require, module) {
-var DEFAULTS, Engine, Highlightable, System, _ref,
+var EffectUtils, Highlightable, System, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-Engine = require('../engine/engine');
-
 System = require('./system');
 
-DEFAULTS = {
-  COLOUR: '#ffff55'
-};
+EffectUtils = require('../lib/effect_utils');
 
 module.exports = Highlightable = (function(_super) {
   __extends(Highlightable, _super);
@@ -2343,7 +2849,6 @@ module.exports = Highlightable = (function(_super) {
   function Highlightable() {
     this.onEndHighlight = __bind(this.onEndHighlight, this);
     this.onHighlight = __bind(this.onHighlight, this);
-    this.createDisplayObject = __bind(this.createDisplayObject, this);
     this.onEntityCreated = __bind(this.onEntityCreated, this);
     _ref = Highlightable.__super__.constructor.apply(this, arguments);
     return _ref;
@@ -2356,19 +2861,9 @@ module.exports = Highlightable = (function(_super) {
       return;
     }
     Highlightable.__super__.onEntityCreated.apply(this, arguments);
-    this.createDisplayObject(entity);
+    EffectUtils.initEffects(entity, entity.highlight);
     entity.on('highlight/on', this.onHighlight);
     return entity.on('highlight/off', this.onEndHighlight);
-  };
-
-  Highlightable.prototype.createDisplayObject = function(entity) {
-    entity.highlight.display_object = new PIXI.Graphics();
-    entity.highlight.display_object.lineStyle(1, DEFAULTS.COLOUR);
-    entity.highlight.display_object.drawCircle(0, 0, 35);
-    entity.highlight.display_object.endFill();
-    entity.highlight.display_object.position.x = 35;
-    entity.highlight.display_object.position.y = 35;
-    return entity.highlight.display_object;
   };
 
   Highlightable.prototype.onHighlight = function(entity) {
@@ -2376,7 +2871,7 @@ module.exports = Highlightable = (function(_super) {
       return;
     }
     entity.highlight.highlighting = true;
-    return entity.view.display_object.addChild(entity.highlight.display_object);
+    return EffectUtils.activate(entity, entity.highlight);
   };
 
   Highlightable.prototype.onEndHighlight = function(entity) {
@@ -2384,7 +2879,7 @@ module.exports = Highlightable = (function(_super) {
       return;
     }
     entity.highlight.highlighting = false;
-    return entity.view.display_object.removeChild(entity.highlight.display_object);
+    return EffectUtils.deactivate(entity, entity.highlight);
   };
 
   return Highlightable;
@@ -2393,16 +2888,16 @@ module.exports = Highlightable = (function(_super) {
 
 });
 require.register('src/systems/hover_effects', function(exports, require, module) {
-var DEFAULTS, Engine, HoverEffects, PIXI, System, _ref,
+var DEFAULTS, EffectUtils, HoverEffects, PIXI, System, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-PIXI = require('pixi');
-
-Engine = require('../engine/engine');
+PIXI = require('pixi.js');
 
 System = require('./system');
+
+EffectUtils = require('../lib/effect_utils');
 
 DEFAULTS = {
   COLOUR: '#ffffff'
@@ -2414,7 +2909,6 @@ module.exports = HoverEffects = (function(_super) {
   function HoverEffects() {
     this.onMouseout = __bind(this.onMouseout, this);
     this.onMouseover = __bind(this.onMouseover, this);
-    this.createDisplayObject = __bind(this.createDisplayObject, this);
     this.onEntityCreated = __bind(this.onEntityCreated, this);
     _ref = HoverEffects.__super__.constructor.apply(this, arguments);
     return _ref;
@@ -2424,38 +2918,25 @@ module.exports = HoverEffects = (function(_super) {
     if (!entity.hasComponent('hover_effects')) {
       return;
     }
-    this.createDisplayObject(entity);
+    EffectUtils.initEffects(entity, entity.hover_effects);
     entity.on('mouseover', this.onMouseover);
     return entity.on('mouseout', this.onMouseout);
   };
 
-  HoverEffects.prototype.createDisplayObject = function(entity) {
-    var outline;
-    if (outline = entity.hover_effects.outline) {
-      entity.hover_effects.display_object = new PIXI.Graphics();
-      entity.hover_effects.display_object.lineStyle(1, outline.colour || DEFAULTS.COLOUR);
-      entity.hover_effects.display_object.drawCircle(0, 0, 35);
-      entity.hover_effects.display_object.endFill();
-      entity.hover_effects.display_object.position.x = 35;
-      entity.hover_effects.display_object.position.y = 35;
-    }
-    return entity.hover_effects.display_object;
-  };
-
-  HoverEffects.prototype.onMouseover = function(event, entity) {
-    if (entity.hover_effects.hovering) {
+  HoverEffects.prototype.onMouseover = function(entity, event) {
+    if (entity.hover_effects.hovering || this.engine.getSystem('teams').isEnemy(entity)) {
       return;
     }
     entity.hover_effects.hovering = true;
-    return entity.view.display_object.addChild(entity.hover_effects.display_object);
+    return EffectUtils.activate(entity, entity.hover_effects);
   };
 
-  HoverEffects.prototype.onMouseout = function(event, entity) {
+  HoverEffects.prototype.onMouseout = function(entity, event) {
     if (!entity.hover_effects.hovering) {
       return;
     }
     entity.hover_effects.hovering = false;
-    return entity.view.display_object.removeChild(entity.hover_effects.display_object);
+    return EffectUtils.deactivate(entity, entity.hover_effects);
   };
 
   return HoverEffects;
@@ -2464,13 +2945,11 @@ module.exports = HoverEffects = (function(_super) {
 
 });
 require.register('src/systems/input', function(exports, require, module) {
-var CONTEXTS, Engine, InputSystem, System,
+var CONTEXTS, InputSystem, System,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
   __slice = [].slice;
-
-Engine = require('../engine/engine');
 
 System = require('./system');
 
@@ -2481,11 +2960,12 @@ module.exports = InputSystem = (function(_super) {
 
   InputSystem.prototype._name = 'input';
 
-  function InputSystem(context_names) {
+  function InputSystem(options, context_names) {
     this.context_names = context_names != null ? context_names : CONTEXTS;
     this.addContext = __bind(this.addContext, this);
     this.setContext = __bind(this.setContext, this);
     this.init = __bind(this.init, this);
+    InputSystem.__super__.constructor.call(this, options);
   }
 
   InputSystem.prototype.init = function() {
@@ -2513,7 +2993,7 @@ module.exports = InputSystem = (function(_super) {
 
   InputSystem.prototype.addContext = function(name) {
     var Context;
-    Context = require("../input/" + name);
+    Context = this.engine.getInputContext(name);
     return this.contexts[name] = new Context();
   };
 
@@ -2523,16 +3003,12 @@ module.exports = InputSystem = (function(_super) {
 
 });
 require.register('src/systems/multiplayer', function(exports, require, module) {
-var Engine, MultiplayerSystem, System, cloak, _ref,
+var MultiplayerSystem, System, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-Engine = require('../engine/engine');
-
 System = require('./system');
-
-cloak = require('cloak');
 
 module.exports = MultiplayerSystem = (function(_super) {
   __extends(MultiplayerSystem, _super);
@@ -2540,6 +3016,8 @@ module.exports = MultiplayerSystem = (function(_super) {
   function MultiplayerSystem() {
     this.sendCommand = __bind(this.sendCommand, this);
     this.onCommand = __bind(this.onCommand, this);
+    this.onAssignTeam = __bind(this.onAssignTeam, this);
+    this.onGameStart = __bind(this.onGameStart, this);
     this.init = __bind(this.init, this);
     _ref = MultiplayerSystem.__super__.constructor.apply(this, arguments);
     return _ref;
@@ -2548,30 +3026,49 @@ module.exports = MultiplayerSystem = (function(_super) {
   MultiplayerSystem.prototype._name = 'multiplayer';
 
   MultiplayerSystem.prototype.init = function() {
+    this.enabled = false;
+    return;
     MultiplayerSystem.__super__.init.apply(this, arguments);
     this.primus = new Primus(this.url);
     this.socket = this.primus.channel('clients');
+    console.log(this.socket.id);
+    this.engine.getSystem('users').setLocalUserId(this.socket.id);
     this.socket.on('command', this.onCommand);
+    this.socket.on('team', this.onAssignTeam);
+    this.socket.on('game_start', this.onGameStart);
     return this.id = this.socket.id;
+  };
+
+  MultiplayerSystem.prototype.onGameStart = function(data) {
+    console.log('GAME STARTING!');
+    this.engine.started = true;
+    return this.engine.getSystem('teams').activate(data.team_id);
+  };
+
+  MultiplayerSystem.prototype.onAssignTeam = function(data) {
+    console.log('got team', data);
+    return this.engine.getSystem('teams').setLocalTeam(data.team_id);
   };
 
   MultiplayerSystem.prototype.onCommand = function(data) {
     var Command, command;
-    console.log('id', this.socket.id);
-    console.log('server said: ' + data);
+    console.log('server said: ', data);
     if (data.user_id === this.id) {
       return;
     }
-    if (!(Command = Engine.getCommand(data.command))) {
+    if (!(Command = this.engine.getCommand(data.command))) {
       console.error('Command not found: ', data.command);
     }
     command = new Command(data.data, {
       remote: true
     });
-    return Engine.getSystem('command_queue').push(command);
+    return this.engine.getSystem('command_queue').push(command);
   };
 
   MultiplayerSystem.prototype.sendCommand = function(command) {
+    if (!this.enabled) {
+      return;
+    }
     return this.socket.send('command', command.toJSON());
   };
 
@@ -2581,12 +3078,12 @@ module.exports = MultiplayerSystem = (function(_super) {
 
 });
 require.register('src/systems/pathing', function(exports, require, module) {
-var Engine, Path, Pathing, System, _ref,
+var Path, Pathing, System, _, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-Engine = require('../engine/engine');
+_ = require('lodash');
 
 System = require('./system');
 
@@ -2633,47 +3130,47 @@ module.exports = Pathing = (function(_super) {
   };
 
   Pathing.prototype.onEntitySelected = function(entity) {
-    console.log('es', this.pathing);
     if (this.pathing) {
-
-    } else {
-      return this.pathStart(entity);
+      this.pathEnd(entity);
     }
+    return this.pathStart(entity);
   };
 
   Pathing.prototype.onEntityDeselected = function(entity) {
     return this.pathEnd(entity);
   };
 
-  Pathing.prototype.onTileClick = function(e, entity) {
+  Pathing.prototype.onTileClick = function(entity, event) {
     if (this.pathing) {
       return this.pathEnd(entity);
     }
   };
 
-  Pathing.prototype.onTileHover = function(e, entity) {
+  Pathing.prototype.onTileHover = function(entity, event) {
     var path_finder;
     if (!this.pathing) {
       return;
     }
     this.hidePath();
-    path_finder = new Path(this.map, {
-      end_traversable: true
-    });
+    path_finder = new Path(this.map);
     this.path = path_finder.findPath(this.current.hex_position, entity.hex_position);
     return this.showPath();
   };
 
   Pathing.prototype.pathStart = function(entity) {
-    var e, positions, _i, _len, _ref1;
-    this.map_entities = Engine.entitiesByComponent('hex_position');
+    var e, pos, positions, _i, _len, _ref1;
+    this.map_entities = this.engine.entitiesByComponent('hex_position');
     positions = [];
     _ref1 = this.map_entities;
     for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
       e = _ref1[_i];
       e.on('mouseover', this.onTileHover);
       e.on('click', this.onTileClick);
-      positions.push(e.hex_position);
+      pos = _.pick(e.hex_position, 'q', 'r', 'traversable');
+      if (this.engine.getSystem('teams').isEnemy(e)) {
+        pos.traversable = true;
+      }
+      positions.push(pos);
     }
     this.map = Path.createMap(positions);
     this.pathing = true;
@@ -2692,7 +3189,6 @@ module.exports = Pathing = (function(_super) {
     this.hidePath();
     this.pathing = false;
     this.current = null;
-    console.log('pathend', this.path);
     return entity.emit('pathable/path_end', {
       path: this.path
     }, entity);
@@ -2705,7 +3201,7 @@ module.exports = Pathing = (function(_super) {
       _results = [];
       for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
         coords = _ref1[_i];
-        tile = Engine.getSystem('hex_grid').getTile(coords);
+        tile = this.engine.getSystem('hex_grid').getTile(coords);
         _results.push(tile.emit('highlight/off', tile));
       }
       return _results;
@@ -2719,7 +3215,7 @@ module.exports = Pathing = (function(_super) {
       _results = [];
       for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
         coords = _ref1[_i];
-        tile = Engine.getSystem('hex_grid').getTile(coords);
+        tile = this.engine.getSystem('hex_grid').getTile(coords);
         _results.push(tile.emit('highlight/on', tile));
       }
       return _results;
@@ -2731,17 +3227,66 @@ module.exports = Pathing = (function(_super) {
 })(System);
 
 });
-require.register('src/systems/renderer', function(exports, require, module) {
-var Engine, PIXI, Renderer, System,
+require.register('src/systems/relations', function(exports, require, module) {
+var Relations, System, _, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-PIXI = require('pixi');
-
-Engine = require('../engine/engine');
+_ = require('lodash');
 
 System = require('./system');
+
+module.exports = Relations = (function(_super) {
+  __extends(Relations, _super);
+
+  function Relations() {
+    this.onEnterTile = __bind(this.onEnterTile, this);
+    this.init = __bind(this.init, this);
+    _ref = Relations.__super__.constructor.apply(this, arguments);
+    return _ref;
+  }
+
+  Relations.prototype._name = 'relations';
+
+  Relations.prototype.init = function() {
+    Relations.__super__.init.apply(this, arguments);
+    this.balls = [];
+    return this.engine.on('enter_tile', this.onEnterTile);
+  };
+
+  Relations.prototype.onEnterTile = function(info) {
+    var child, entity, position, _i, _len, _ref1, _ref2, _ref3, _results;
+    entity = info.entity, position = info.position;
+    if ((_ref1 = entity.relations) != null ? (_ref2 = _ref1.children) != null ? _ref2.length : void 0 : void 0) {
+      _ref3 = entity.relations.children;
+      _results = [];
+      for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
+        child = _ref3[_i];
+        _results.push(child.hex_position.set(entity.hex_position));
+      }
+      return _results;
+    }
+  };
+
+  return Relations;
+
+})(System);
+
+});
+require.register('src/systems/renderer', function(exports, require, module) {
+var PIXI, Renderer, System, View, _,
+  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+  __hasProp = {}.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+_ = require('lodash');
+
+PIXI = require('pixi.js');
+
+System = require('./system');
+
+View = require('../components/views/view');
 
 module.exports = Renderer = (function(_super) {
   __extends(Renderer, _super);
@@ -2749,29 +3294,34 @@ module.exports = Renderer = (function(_super) {
   Renderer.prototype._name = 'renderer';
 
   function Renderer() {
+    this.isView = __bind(this.isView, this);
+    this.entityViews = __bind(this.entityViews, this);
     this.setTexture = __bind(this.setTexture, this);
     this.removeFromStage = __bind(this.removeFromStage, this);
     this.addToStage = __bind(this.addToStage, this);
     this.getStage = __bind(this.getStage, this);
     this.setStage = __bind(this.setStage, this);
-    this.createDisplayObject = __bind(this.createDisplayObject, this);
+    this.createDisplayObjects = __bind(this.createDisplayObjects, this);
     this.update = __bind(this.update, this);
     this.onParentChanged = __bind(this.onParentChanged, this);
     this.onEntityDestroyed = __bind(this.onEntityDestroyed, this);
     this.onEntityCreated = __bind(this.onEntityCreated, this);
-    this.stage = new PIXI.Stage(0x66FF99);
+    Renderer.__super__.constructor.apply(this, arguments);
+    this.stage = new PIXI.Container();
+    window.stage = this.stage;
     this.renderer = PIXI.autoDetectRenderer(800, 600);
-    document.body.appendChild(this.renderer.view);
+    this.renderer.backgroundColor = 0xFFFFFF;
+    this.view = this.renderer.view;
+    document.body.appendChild(this.view);
   }
 
   Renderer.prototype.onEntityCreated = function(entity) {
-    if (!entity.hasComponent('view')) {
+    if (!this.entityViews(entity).length) {
       return;
     }
     Renderer.__super__.onEntityCreated.apply(this, arguments);
+    this.createDisplayObjects(entity);
     this.setStage(entity);
-    this.createDisplayObject(entity);
-    this.addToStage(entity);
     return entity.on('parent/changed', this.onParentChanged);
   };
 
@@ -2785,60 +3335,111 @@ module.exports = Renderer = (function(_super) {
   };
 
   Renderer.prototype.update = function() {
-    var entity, _i, _len, _ref;
-    _ref = Engine.entitiesByComponent('view');
+    var entity, view, _i, _j, _len, _len1, _ref, _ref1, _ref2, _ref3;
+    _ref = this.engine.entitiesByComponent('view');
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       entity = _ref[_i];
-      entity.view.display_object.position.x = entity.position.x;
-      entity.view.display_object.position.y = entity.position.y;
+      _ref1 = this.entityViews(entity);
+      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+        view = _ref1[_j];
+        if (typeof view.update === "function") {
+          view.update();
+        }
+        view.display_object.position.x = entity.position.x + (((_ref2 = view.offset) != null ? _ref2.x : void 0) || 0);
+        view.display_object.position.y = entity.position.y + (((_ref3 = view.offset) != null ? _ref3.y : void 0) || 0);
+      }
     }
     return this.renderer.render(this.stage);
   };
 
-  Renderer.prototype.createDisplayObject = function(entity) {
-    return entity.view.createDisplayObject();
+  Renderer.prototype.createDisplayObjects = function(entity) {
+    var view, _i, _len, _ref, _results;
+    _ref = this.entityViews(entity);
+    _results = [];
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      view = _ref[_i];
+      _results.push(view.createDisplayObject());
+    }
+    return _results;
   };
 
   Renderer.prototype.setStage = function(entity) {
-    var removed;
-    removed = this.removeFromStage(entity);
-    entity.view.stage = this.getStage(entity);
-    if (removed) {
-      return this.addToStage(entity);
+    var view, _i, _len, _ref, _results;
+    _ref = this.entityViews(entity);
+    _results = [];
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      view = _ref[_i];
+      this.removeFromStage(view);
+      view.stage = this.getStage(entity, view);
+      _results.push(this.addToStage(view));
     }
+    return _results;
   };
 
-  Renderer.prototype.getStage = function(entity) {
-    var _ref, _ref1, _ref2;
-    return ((_ref = entity.relations) != null ? (_ref1 = _ref.parent) != null ? (_ref2 = _ref1.view) != null ? _ref2.display_object : void 0 : void 0 : void 0) || this.stage;
+  Renderer.prototype.getStage = function(entity, view) {
+    var stage, stage_view, _ref, _ref1, _ref2;
+    if (view != null ? view.parent : void 0) {
+      if (_.isString(view.parent)) {
+        stage_view = entity.getComponent(view.parent);
+      } else {
+        stage_view = view.parent;
+      }
+      if (!this.isView(stage_view)) {
+        console.log('Hexxi.Renderer: Invalid parent view for', view);
+      }
+      if (!(stage = stage_view.display_object)) {
+        console.log('Hexxi.Renderer: display_object missing from parent view for', view, 'parent', stage_view);
+      }
+    } else {
+      stage = ((_ref = entity.relations) != null ? (_ref1 = _ref.parent) != null ? (_ref2 = _ref1.view) != null ? _ref2.display_object : void 0 : void 0 : void 0) || this.stage;
+    }
+    return stage;
   };
 
-  Renderer.prototype.addToStage = function(entity) {
+  Renderer.prototype.addToStage = function(view) {
     var stage;
-    if (!(stage = entity.view.stage)) {
+    if (!(stage = view.stage)) {
       return;
     }
-    if (stage.children.indexOf(entity.view.display_object) >= 0) {
+    if (stage.children.indexOf(view.display_object) >= 0) {
       return;
     }
-    stage.addChild(entity.view.display_object);
-    return entity.emit('show', entity.view.display_object);
+    stage.addChild(view.display_object);
+    return stage.children.sort(function(a, b) {
+      return (a.z_index || 0) - (b.z_index || 0);
+    });
   };
 
-  Renderer.prototype.removeFromStage = function(entity) {
+  Renderer.prototype.removeFromStage = function(view) {
     var stage;
-    if (!((stage = entity.view.stage) && stage.children.indexOf(entity.view.display_object) >= 0)) {
+    if (!((stage = view.stage) && stage.children.indexOf(view.display_object) >= 0)) {
       return false;
     }
-    stage.removeChild(entity.view.display_object);
-    entity.emit('hide', entity.view.display_object);
+    stage.removeChild(view.display_object);
     return true;
   };
 
   Renderer.prototype.setTexture = function(entity, texture) {
     entity.view.texture = texture;
     entity.view.pixi_texture = PIXI.Texture.fromImage(texture);
-    return entity.view.display_object.setTexture(entity.view.pixi_texture);
+    return entity.view.display_object.texture = entity.view.pixi_texture;
+  };
+
+  Renderer.prototype.entityViews = function(entity) {
+    var component, name, _ref, _results;
+    _ref = entity.components;
+    _results = [];
+    for (name in _ref) {
+      component = _ref[name];
+      if (this.isView(component)) {
+        _results.push(component);
+      }
+    }
+    return _results;
+  };
+
+  Renderer.prototype.isView = function(component) {
+    return component._view || component instanceof View;
   };
 
   return Renderer;
@@ -2847,12 +3448,10 @@ module.exports = Renderer = (function(_super) {
 
 });
 require.register('src/systems/selectables', function(exports, require, module) {
-var Engine, Selectables, System, _ref,
+var Selectables, System, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
-
-Engine = require('../engine/engine');
 
 System = require('./system');
 
@@ -2860,7 +3459,6 @@ module.exports = Selectables = (function(_super) {
   __extends(Selectables, _super);
 
   function Selectables() {
-    this.onCurrentTeam = __bind(this.onCurrentTeam, this);
     this.canSelect = __bind(this.canSelect, this);
     this.deselect = __bind(this.deselect, this);
     this.select = __bind(this.select, this);
@@ -2912,12 +3510,7 @@ module.exports = Selectables = (function(_super) {
   };
 
   Selectables.prototype.canSelect = function(entity) {
-    console.log('currentteam', entity, this.onCurrentTeam(entity));
-    return entity.getComponent('selectable') && this.onCurrentTeam(entity);
-  };
-
-  Selectables.prototype.onCurrentTeam = function(entity) {
-    return Engine.active_team.id === entity.player.team_id;
+    return entity.getComponent('selectable') && this.engine.getSystem('teams').isAlly(entity);
   };
 
   return Selectables;
@@ -2926,15 +3519,16 @@ module.exports = Selectables = (function(_super) {
 
 });
 require.register('src/systems/system', function(exports, require, module) {
-var Engine, System,
+var System, _,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
-Engine = require('../engine/engine');
+_ = require('lodash');
 
 module.exports = System = (function() {
   function System(options) {
     var key, value, _ref;
     this.options = options != null ? options : {};
+    this.entityById = __bind(this.entityById, this);
     this.onEntityDestroyed = __bind(this.onEntityDestroyed, this);
     this.onEntityCreated = __bind(this.onEntityCreated, this);
     this.init = __bind(this.init, this);
@@ -2943,18 +3537,19 @@ module.exports = System = (function() {
       value = _ref[key];
       this[key] = value;
     }
+    this.engine || (this.engine = require('../engine'));
   }
 
   System.prototype.init = function() {
     var entity, _i, _len, _ref;
     this.entities = [];
-    _ref = Engine.entities;
+    _ref = this.engine.entities;
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       entity = _ref[_i];
       this.onEntityCreated(entity);
     }
-    Engine.on('entity/created', this.onEntityCreated);
-    return Engine.on('entity/destroyed', this.onEntityDestroyed);
+    this.engine.on('entity/created', this.onEntityCreated);
+    return this.engine.on('entity/destroyed', this.onEntityDestroyed);
   };
 
   System.prototype.update = function() {};
@@ -2963,52 +3558,210 @@ module.exports = System = (function() {
 
   System.prototype.onEntityDestroyed = function(entity) {};
 
+  System.prototype.entityById = function(id) {
+    return _.find(this.entities, function(e) {
+      return e.id === id;
+    });
+  };
+
   return System;
 
 })();
 
 });
 require.register('src/systems/teams', function(exports, require, module) {
-var Engine, System, Teams, _ref,
+var System, TeamsSystem, _, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-Engine = require('../engine/engine');
+_ = require('lodash');
 
 System = require('./system');
 
-module.exports = Teams = (function(_super) {
-  __extends(Teams, _super);
+module.exports = TeamsSystem = (function(_super) {
+  __extends(TeamsSystem, _super);
 
-  function Teams() {
+  function TeamsSystem() {
     this.isEnemy = __bind(this.isEnemy, this);
     this.isAlly = __bind(this.isAlly, this);
+    this.localTeam = __bind(this.localTeam, this);
+    this.localIsActive = __bind(this.localIsActive, this);
+    this.activeUserId = __bind(this.activeUserId, this);
+    this.activeTeam = __bind(this.activeTeam, this);
+    this.createTurnOrder = __bind(this.createTurnOrder, this);
+    this.activate = __bind(this.activate, this);
+    this.nextTeam = __bind(this.nextTeam, this);
+    this.setLocalTeam = __bind(this.setLocalTeam, this);
+    this.startingTeam = __bind(this.startingTeam, this);
+    this.next = __bind(this.next, this);
     this.onEntityCreated = __bind(this.onEntityCreated, this);
-    _ref = Teams.__super__.constructor.apply(this, arguments);
+    this.init = __bind(this.init, this);
+    _ref = TeamsSystem.__super__.constructor.apply(this, arguments);
     return _ref;
   }
 
-  Teams.prototype._name = 'teams';
+  TeamsSystem.prototype._name = 'teams';
 
-  Teams.prototype.onEntityCreated = function(entity) {
+  TeamsSystem.prototype.init = function() {
+    TeamsSystem.__super__.init.apply(this, arguments);
+    return window.teams = this;
+  };
+
+  TeamsSystem.prototype.onEntityCreated = function(entity) {
     if (!entity.hasComponent('team')) {
       return;
     }
-    return Teams.__super__.onEntityCreated.apply(this, arguments);
+    this.entities.push(entity);
+    return this.createTurnOrder();
   };
 
-  Teams.prototype.isAlly = function(entity) {
+  TeamsSystem.prototype.next = function() {
+    return this.activate(this.nextTeam());
+  };
+
+  TeamsSystem.prototype.startingTeam = function() {
+    return this.ordered_teams[0];
+  };
+
+  TeamsSystem.prototype.setLocalTeam = function(team_id) {
+    var team, user_id, _ref1;
+    user_id = (_ref1 = this.engine.getSystem('users').localUser()) != null ? _ref1.id : void 0;
+    console.log('You are player', team_id);
+    team = this.entities[--team_id];
+    return team.user_id = user_id;
+  };
+
+  TeamsSystem.prototype.nextTeam = function() {
+    var next_index, _ref1;
+    if (!this.ordered_teams) {
+      return;
+    }
+    next_index = this.activeTeam() ? ((_ref1 = this.activeTeam()) != null ? _ref1.team.turn_index : void 0) + 1 : 0;
+    if (!next_index || next_index >= this.ordered_teams.length) {
+      next_index = 0;
+    }
+    return this.ordered_teams[next_index];
+  };
+
+  TeamsSystem.prototype.activate = function(team) {
     var _ref1;
-    return (((_ref1 = entity.player) != null ? _ref1.team_id : void 0) != null) && Engine.active_team.id === entity.player.team_id;
+    console.log('activating team', team);
+    if (!team.id) {
+      team = this.entityById(team);
+    }
+    if (!team.hasComponent('team')) {
+      console.error('TeamsSystem: Attempting to activate an entity without a team component', entity);
+    }
+    if ((_ref1 = this.activeTeam()) != null) {
+      _ref1.team.active = false;
+    }
+    this.active_team = team;
+    return console.log('Activated team', team.id);
   };
 
-  Teams.prototype.isEnemy = function(entity) {
+  TeamsSystem.prototype.createTurnOrder = function() {
+    var i, t, _i, _len, _ref1, _results;
+    this.ordered_teams = this.entities;
+    i = 0;
+    _ref1 = this.ordered_teams;
+    _results = [];
+    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+      t = _ref1[_i];
+      _results.push(t.team.turn_index = i++);
+    }
+    return _results;
+  };
+
+  TeamsSystem.prototype.activeTeam = function() {
+    return this.active_team;
+  };
+
+  TeamsSystem.prototype.activeUserId = function() {
     var _ref1;
-    return (((_ref1 = entity.player) != null ? _ref1.team_id : void 0) != null) && Engine.active_team.id !== entity.player.team_id;
+    return (_ref1 = this.active_team) != null ? _ref1.user_id : void 0;
   };
 
-  return Teams;
+  TeamsSystem.prototype.localIsActive = function() {
+    var _ref1, _ref2;
+    return ((_ref1 = this.localTeam()) != null ? _ref1.id : void 0) === ((_ref2 = this.activeTeam()) != null ? _ref2.id : void 0);
+  };
+
+  TeamsSystem.prototype.localTeam = function() {
+    var _this = this;
+    return _.find(this.entities, function(t) {
+      var _ref1;
+      return t.user_id === ((_ref1 = _this.engine.getSystem('users').localUser()) != null ? _ref1.id : void 0);
+    });
+  };
+
+  TeamsSystem.prototype.isAlly = function(entity) {
+    var _ref1, _ref2;
+    return ((_ref1 = this.localTeam()) != null ? _ref1.id : void 0) === ((_ref2 = entity.team_membership) != null ? _ref2.team_id : void 0);
+  };
+
+  TeamsSystem.prototype.isEnemy = function(entity) {
+    var _ref1, _ref2;
+    return ((_ref1 = this.localTeam()) != null ? _ref1.id : void 0) !== ((_ref2 = entity.team_membership) != null ? _ref2.team_id : void 0);
+  };
+
+  return TeamsSystem;
+
+})(System);
+
+});
+require.register('src/systems/users', function(exports, require, module) {
+var System, User, Users, _, _ref,
+  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+  __hasProp = {}.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+_ = require('lodash');
+
+System = require('./system');
+
+User = require('../entities/user');
+
+module.exports = Users = (function(_super) {
+  __extends(Users, _super);
+
+  function Users() {
+    this.setLocalUserId = __bind(this.setLocalUserId, this);
+    this.localUser = __bind(this.localUser, this);
+    this.onEntityCreated = __bind(this.onEntityCreated, this);
+    this.init = __bind(this.init, this);
+    _ref = Users.__super__.constructor.apply(this, arguments);
+    return _ref;
+  }
+
+  Users.prototype._name = 'users';
+
+  Users.prototype.init = function() {
+    return this.default_user || (this.default_user = new User({
+      id: 1,
+      is_local: true
+    }));
+  };
+
+  Users.prototype.onEntityCreated = function(entity) {
+    if (!entity.hasComponent('user')) {
+      return;
+    }
+    return Users.__super__.onEntityCreated.apply(this, arguments);
+  };
+
+  Users.prototype.localUser = function() {
+    var _this = this;
+    return _.find(this.entities, function(u) {
+      return u.user.is_local;
+    });
+  };
+
+  Users.prototype.setLocalUserId = function(id) {
+    return this.localUser.id = id;
+  };
+
+  return Users;
 
 })(System);
 
@@ -3021,7 +3774,7 @@ var Circle, Component, PIXI, _ref,
 
 Component = require('./../component');
 
-PIXI = require('pixi');
+PIXI = require('pixi.js');
 
 module.exports = Circle = (function(_super) {
   __extends(Circle, _super);
@@ -3039,6 +3792,7 @@ module.exports = Circle = (function(_super) {
     this.display_object.beginFill(0xFFFF00);
     this.display_object.lineStyle(5, 0xFF0000);
     this.display_object.drawCircle(100, 100, 5);
+    this.entity.emit('view/display_object_created');
     return this.display_object;
   };
 
@@ -3048,14 +3802,16 @@ module.exports = Circle = (function(_super) {
 
 });
 require.register('src/components/views/sprite', function(exports, require, module) {
-var PIXI, Sprite, View, _ref,
+var PIXI, Sprite, View, _, _ref,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
+_ = require('lodash');
+
 View = require('./view');
 
-PIXI = require('pixi');
+PIXI = require('pixi.js');
 
 module.exports = Sprite = (function(_super) {
   __extends(Sprite, _super);
@@ -3074,6 +3830,22 @@ module.exports = Sprite = (function(_super) {
     }
     this.pixi_texture = PIXI.Texture.fromImage(this.texture);
     this.display_object = new PIXI.Sprite(this.pixi_texture);
+    if (this.anchor) {
+      _.extend(this.display_object.anchor, this.anchor);
+    }
+    if (this.scale) {
+      if (_.isNumber(this.scale)) {
+        this.scale = {
+          x: this.scale,
+          y: this.scale
+        };
+      }
+      _.extend(this.display_object.scale, this.scale);
+    }
+    if (this.z_index) {
+      this.display_object.z_index = this.z_index;
+    }
+    this.entity.emit('view/display_object_created');
     return this.display_object;
   };
 
@@ -3088,11 +3860,11 @@ var PIXI, TextView, View, _,
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-_ = require('underscore');
+_ = require('lodash');
 
 View = require('./view');
 
-PIXI = require('pixi');
+PIXI = require('pixi.js');
 
 module.exports = TextView = (function(_super) {
   __extends(TextView, _super);
@@ -3101,6 +3873,7 @@ module.exports = TextView = (function(_super) {
 
   function TextView(entity, options) {
     this.entity = entity;
+    this.update = __bind(this.update, this);
     this.createDisplayObject = __bind(this.createDisplayObject, this);
     TextView.__super__.constructor.apply(this, arguments);
     this.text_anchor || (this.text_anchor = {
@@ -3122,7 +3895,13 @@ module.exports = TextView = (function(_super) {
     this.display_object.anchor.y = this.text_anchor.y;
     this.display_object.position.x = this.text_position.x;
     this.display_object.position.y = this.text_position.y;
+    this.entity.emit('view/display_object_created');
     return this.display_object;
+  };
+
+  TextView.prototype.update = function() {
+    var _ref;
+    return (_ref = this.display_object) != null ? _ref.text = this.entity.toString() : void 0;
   };
 
   return TextView;
@@ -3131,9 +3910,12 @@ module.exports = TextView = (function(_super) {
 
 });
 require.register('src/components/views/view', function(exports, require, module) {
-var Component, View, _ref,
+var Component, PIXI, View, _ref,
+  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   __hasProp = {}.hasOwnProperty,
   __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+PIXI = require('pixi.js');
 
 Component = require('../component');
 
@@ -3141,64 +3923,42 @@ module.exports = View = (function(_super) {
   __extends(View, _super);
 
   function View() {
+    this.destroy = __bind(this.destroy, this);
+    this.hide = __bind(this.hide, this);
+    this.show = __bind(this.show, this);
     _ref = View.__super__.constructor.apply(this, arguments);
     return _ref;
   }
 
   View.prototype._name = 'view';
 
+  View.prototype._view = true;
+
   View.prototype.createDisplayObject = function() {
-    this.display_object = new PIXI.DisplayObjectContainer();
+    this.display_object = new PIXI.Container();
+    this.display_object.z_index = this.z_index || 0;
+    this.entity.emit('view/display_object_created');
     return this.display_object;
+  };
+
+  View.prototype.show = function() {
+    var _ref1;
+    this.visible = true;
+    return (_ref1 = this.display_object) != null ? _ref1.visible = true : void 0;
+  };
+
+  View.prototype.hide = function() {
+    var _ref1;
+    this.visible = false;
+    return (_ref1 = this.display_object) != null ? _ref1.visible = false : void 0;
+  };
+
+  View.prototype.destroy = function() {
+    return this.engine.getSystem('renderer').removeFromStage(this.entity);
   };
 
   return View;
 
 })(Component);
-
-});
-require.register('src/input/mixins/select_ally', function(exports, require, module) {
-var Engine, SelectAllyMixin, _,
-  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
-
-_ = require('underscore');
-
-Engine = require('../../engine/engine');
-
-module.exports = SelectAllyMixin = (function() {
-  function SelectAllyMixin() {
-    this.select = __bind(this.select, this);
-  }
-
-  SelectAllyMixin.prototype.activate = function() {
-    var entity, _i, _len, _ref, _results;
-    this.targets = Engine.entitiesByComponent('selectable');
-    _ref = this.targets;
-    _results = [];
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      entity = _ref[_i];
-      _results.push(entity.on('click', this.select));
-    }
-    return _results;
-  };
-
-  SelectAllyMixin.prototype.deactivate = function() {
-    var entity, _i, _len, _ref, _results;
-    _ref = this.targets;
-    _results = [];
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      entity = _ref[_i];
-      _results.push(entity.off('click', this.select));
-    }
-    return _results;
-  };
-
-  SelectAllyMixin.prototype.select = function(e, entity) {
-    return Engine.getSystem('selectables').select(entity);
-  };
-
-  return SelectAllyMixin;
-
-})();
 
 });;

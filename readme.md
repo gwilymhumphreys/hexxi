@@ -62,10 +62,11 @@ Hexxi.configure({
 
 #####API
 Status: In progress
-Extracting lib from prototype
+
+Expect changes!
 
 #####Entities
-The following are included in core
+The following base entities are included in core
 - board
 - grid_tile
 - unit
@@ -73,6 +74,7 @@ The following are included in core
 
 #####Components
 The following are included in core
+
 Some pruning may occur
 - views
   - view
@@ -90,9 +92,10 @@ Some pruning may occur
 - position
 - relations
 - selectable
-- tile
-- unit
 - team
+- team_membership
+- tile
+- user
 
 #####Systems
 The following are included in core
@@ -108,14 +111,23 @@ The following are included in core
 - selectables
 - teams
 
-#####Commands & Actions
-Only movement is supported
-In progress: Heath system and attacking commands
+#####Animations
+Animations are used to move entities around. They must emit a `complete` event when done.
+
+Two builtin animations are provide:
+- linear: Move directly to another hex position
+- hex_path: Move along a series of hex positions
+
+#####Commands
+Commands are used to represent a result of player input. Hexxi comes with a builtin move command as an example.
+
+Commands should be lightweight and delegate their work to relevant systems.
 
 #####Multiplayer
 Status: In progress
-Extending primus.io server side to support users
-Extending client multiplayer component
-Currently two clients can connect and have their moves mirrored.
+
+- Extending primus.io server side to support users
+- Extending client multiplayer component
+- Currently two clients can connect and have their moves mirrored.
 
 

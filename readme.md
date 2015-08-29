@@ -1,5 +1,5 @@
 # Hexxi v0.1.0
-A HTML5 engine for creating hex based games
+A HTML5 engine for creating hex based games.
 
 ##Getting started
 1.  Install via npm
@@ -120,9 +120,11 @@ The following are included in core
 - input
 - multiplayer
 - pathing
+- relations
 - renderer
 - selectables
 - teams
+- users
 
 #####Animations
 Animations are used to move entities around. They must emit a `complete` event when done.
